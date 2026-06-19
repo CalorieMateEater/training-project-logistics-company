@@ -1,0 +1,24 @@
+server:
+  port: ${SERVER_PORT:8085}
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  sql:
+    init:
+      mode: never
+
+hoge:
+  internal:
+    customer-base-url: ${CUSTOMER_BASE_URL}
+    stock-base-url: ${STOCK_BASE_URL}
+  files:
+    foo-ack-dir: ${FOO_ACK_DIR}
+    archive-dir: ${ARCHIVE_DIR}

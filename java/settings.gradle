@@ -1,0 +1,8 @@
+rootProject.name = 'hoge-platform'
+
+include 'hoge-orderhub-common'
+include 'hoge-customer-registry-api'
+include 'hoge-stock-keeper-api'
+include 'hoge-shipping-gateway-api'
+include 'hoge-orderhub-batch'
+include 'hoge-orderhub-worker'

@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: hoge-shipping-gateway-api
+  profiles:
+    default: local
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

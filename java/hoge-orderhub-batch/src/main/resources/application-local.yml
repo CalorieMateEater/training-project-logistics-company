@@ -1,0 +1,24 @@
+server:
+  port: 8085
+
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/orderhub;MODE=PostgreSQL;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  sql:
+    init:
+      mode: always
+
+hoge:
+  internal:
+    customer-base-url: http://localhost:8081
+    stock-base-url: http://localhost:8082
+  files:
+    foo-ack-dir: ./runtime/foo/ack
+    archive-dir: ./runtime/archive

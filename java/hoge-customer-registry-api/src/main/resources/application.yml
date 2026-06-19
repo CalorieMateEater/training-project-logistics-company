@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: hoge-customer-registry-api
+  profiles:
+    default: local
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

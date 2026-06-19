@@ -1,0 +1,24 @@
+server:
+  port: 8084
+
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/orderhub;MODE=PostgreSQL;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  sql:
+    init:
+      mode: always
+
+hoge:
+  files:
+    foo-ack-dir: ./runtime/foo/ack
+    foo-status-dir: ./runtime/foo/status
+  worker:
+    dispatch-delay-ms: 30000
+    foo-status-delay-ms: 45000

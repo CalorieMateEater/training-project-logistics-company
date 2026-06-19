@@ -1,0 +1,29 @@
+server:
+  port: 18084
+
+spring:
+  task:
+    scheduling:
+      enabled: false
+  datasource:
+    url: jdbc:h2:mem:orderhub-worker-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+  sql:
+    init:
+      mode: always
+
+hoge:
+  files:
+    foo-ack-dir: ./build/test-runtime/foo/ack
+    foo-status-dir: ./build/test-runtime/foo/status
+  worker:
+    scheduling:
+      enabled: false
+    dispatch-delay-ms: 10
+    foo-status-delay-ms: 10

@@ -1,0 +1,24 @@
+server:
+  port: ${SERVER_PORT:8084}
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  sql:
+    init:
+      mode: never
+
+hoge:
+  files:
+    foo-ack-dir: ${FOO_ACK_DIR}
+    foo-status-dir: ${FOO_STATUS_DIR}
+  worker:
+    dispatch-delay-ms: ${DISPATCH_DELAY_MS:30000}
+    foo-status-delay-ms: ${FOO_STATUS_DELAY_MS:45000}
