@@ -1,0 +1,38 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / editor
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/*
+!.vscode/settings.json
+out/
+**/out/
+
+# Logs
+*.log
+logs/
+
+# Java / Gradle
+**/build/
+**/.gradle/
+java/.gradle/
+
+# Local runtime data
+**/data/
+*.mv.db
+*.trace.db
+*.h2.db
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*.jar
+*.class
+*.env
