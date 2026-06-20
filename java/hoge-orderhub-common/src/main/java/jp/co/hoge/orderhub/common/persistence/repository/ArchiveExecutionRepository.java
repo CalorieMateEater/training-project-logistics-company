@@ -8,5 +8,4 @@ import org.springframework.data.jpa.repository.JpaRepository;
  *
  * @author Takuya Yamamoto
  */
-public interface ArchiveExecutionRepository extends JpaRepository<ArchiveExecutionEntity, String> {
-}
+public interface ArchiveExecutionRepository extends JpaRepository<ArchiveExecutionEntity, String> {}

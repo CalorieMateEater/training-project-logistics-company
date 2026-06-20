@@ -8,9 +8,4 @@ package jp.co.hoge.orderhub.common.dto;
  * @param memberRank 会員ランク
  * @author Takuya Yamamoto
  */
-public record CustomerStatusResponse(
-        String customerId,
-        String status,
-        String memberRank
-) {
-}
+public record CustomerStatusResponse(String customerId, String status, String memberRank) {}

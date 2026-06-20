@@ -15,23 +15,22 @@ import org.springframework.data.jpa.repository.JpaRepository;
  */
 public interface ShipmentRequestRepository extends JpaRepository<ShipmentRequestEntity, String> {
 
-    /**
-     * 注文 ID から出荷依頼を取得する。
-     *
-     * @param orderId 注文 ID
-     * @return 出荷依頼
-     */
-    Optional<ShipmentRequestEntity> findByOrderId(String orderId);
+  /**
+   * 注文 ID から出荷依頼を取得する。
+   *
+   * @param orderId 注文 ID
+   * @return 出荷依頼
+   */
+  Optional<ShipmentRequestEntity> findByOrderId(String orderId);
 
-    /**
-     * 指定状態かつ再送時刻到達済みの出荷依頼を再送予定時刻順に取得する。
-     *
-     * @param statuses 対象状態一覧
-     * @param threshold 再送判定基準時刻
-     * @return 再送対象出荷依頼一覧
-     */
-    List<ShipmentRequestEntity> findByShipmentRequestStatusInAndNextRequestAfterLessThanEqualOrderByNextRequestAfterAsc(
-            Collection<ShipmentRequestStatus> statuses,
-            LocalDateTime threshold
-    );
+  /**
+   * 指定状態かつ再送時刻到達済みの出荷依頼を再送予定時刻順に取得する。
+   *
+   * @param statuses 対象状態一覧
+   * @param threshold 再送判定基準時刻
+   * @return 再送対象出荷依頼一覧
+   */
+  List<ShipmentRequestEntity>
+      findByShipmentRequestStatusInAndNextRequestAfterLessThanEqualOrderByNextRequestAfterAsc(
+          Collection<ShipmentRequestStatus> statuses, LocalDateTime threshold);
 }

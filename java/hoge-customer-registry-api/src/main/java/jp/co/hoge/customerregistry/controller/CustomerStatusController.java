@@ -17,17 +17,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/customers")
 @RequiredArgsConstructor
 public class CustomerStatusController {
-    /** 顧客状態照会サービス。 */
-    private final CustomerStatusService customerStatusService;
+  /** 顧客状態照会サービス。 */
+  private final CustomerStatusService customerStatusService;
 
-    /**
-     * 顧客 ID から顧客状態を取得する。
-     *
-     * @param customerId 顧客 ID
-     * @return 顧客状態
-     */
-    @GetMapping("/{customerId}/status")
-    public CustomerStatusResponse findStatus(@PathVariable String customerId) {
-        return customerStatusService.findStatus(customerId);
-    }
+  /**
+   * 顧客 ID から顧客状態を取得する。
+   *
+   * @param customerId 顧客 ID
+   * @return 顧客状態
+   */
+  @GetMapping("/{customerId}/status")
+  public CustomerStatusResponse findStatus(@PathVariable String customerId) {
+    return customerStatusService.findStatus(customerId);
+  }
 }

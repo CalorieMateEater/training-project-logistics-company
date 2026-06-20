@@ -8,9 +8,5 @@ import org.mapstruct.ReportingPolicy;
  *
  * @author Takuya Yamamoto
  */
-@MapperConfig(
-        componentModel = "spring",
-        unmappedTargetPolicy = ReportingPolicy.IGNORE
-)
-public interface CommonMapperConfig {
-}
+@MapperConfig(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
+public interface CommonMapperConfig {}

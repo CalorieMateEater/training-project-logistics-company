@@ -12,11 +12,11 @@ import org.mapstruct.Mapper;
 @Mapper(config = CommonMapperConfig.class)
 public interface NotificationHistoryEntityMapper {
 
-    /**
-     * 通知履歴記録を通知履歴エンティティへ変換する。
-     *
-     * @param source 変換元レコード
-     * @return 通知履歴エンティティ
-     */
-    NotificationHistoryEntity toEntity(NotificationHistoryRecord source);
+  /**
+   * 通知履歴記録を通知履歴エンティティへ変換する。
+   *
+   * @param source 変換元レコード
+   * @return 通知履歴エンティティ
+   */
+  NotificationHistoryEntity toEntity(NotificationHistoryRecord source);
 }

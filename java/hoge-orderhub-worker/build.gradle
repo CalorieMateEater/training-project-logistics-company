@@ -3,6 +3,8 @@ plugins {
     id 'org.springframework.boot'
 }
 
+apply from: rootProject.file('gradle/spotless-conventions.gradle')
+
 dependencies {
     implementation project(':hoge-orderhub-common')
     implementation 'org.springframework.boot:spring-boot-starter-web'

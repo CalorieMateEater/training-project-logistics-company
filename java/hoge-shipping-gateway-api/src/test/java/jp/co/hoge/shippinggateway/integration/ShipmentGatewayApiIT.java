@@ -15,6 +15,7 @@ import jp.co.hoge.orderhub.common.domain.OrderStatus;
 import jp.co.hoge.orderhub.common.domain.ShipmentRequestStatus;
 import jp.co.hoge.orderhub.common.domain.ShippingPriorityClass;
 import jp.co.hoge.orderhub.common.dto.CustomerStatusResponse;
+import jp.co.hoge.orderhub.common.dto.StockReservationOperationResponse;
 import jp.co.hoge.orderhub.common.dto.StockReservationResponse;
 import jp.co.hoge.orderhub.common.persistence.entity.DeliveryStatusCurrentEntity;
 import jp.co.hoge.orderhub.common.persistence.entity.OrderHeaderEntity;
@@ -38,37 +39,40 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class ShipmentGatewayApiIT {
-    @Autowired
-    private MockMvc mockMvc;
+  @Autowired private MockMvc mockMvc;
 
-    @Autowired
-    private OrderHeaderRepository orderHeaderRepository;
+  @Autowired private OrderHeaderRepository orderHeaderRepository;
 
-    @Autowired
-    private ShipmentRequestRepository shipmentRequestRepository;
+  @Autowired private ShipmentRequestRepository shipmentRequestRepository;
 
-    @Autowired
-    private DeliveryStatusCurrentRepository deliveryStatusCurrentRepository;
+  @Autowired private DeliveryStatusCurrentRepository deliveryStatusCurrentRepository;
 
-    @MockBean
-    private CustomerRegistryClient customerRegistryClient;
+  @MockBean private CustomerRegistryClient customerRegistryClient;
 
-    @MockBean
-    private StockKeeperClient stockKeeperClient;
+  @MockBean private StockKeeperClient stockKeeperClient;
 
-    @Test
-    void shouldAcceptShipmentRequestApi() throws Exception {
-        when(customerRegistryClient.findStatus("C00000000001"))
-                .thenReturn(new CustomerStatusResponse("C00000000001", "ACTIVE", "GOLD"));
-        when(stockKeeperClient.reserve(any()))
-                .thenReturn(new StockReservationResponse("RSV-1", "RESERVED", List.of()));
+  @Test
+  void shouldAcceptShipmentRequestApi() throws Exception {
+    when(customerRegistryClient.findStatus("C00000000001"))
+        .thenReturn(new CustomerStatusResponse("C00000000001", "ACTIVE", "GOLD"));
+    when(stockKeeperClient.reserve(any()))
+        .thenReturn(
+            new StockReservationResponse(
+                "RSV-1",
+                "RESERVED",
+                List.of(
+                    new StockReservationResponse.ReservationResult(
+                        "ITM0000001", 1, 1, "WH-TYO-01", "RESERVED", 100, 1, 99))));
 
-        mockMvc.perform(post("/api/v1/shipment-requests")
-                        .header("X-Client-System-Id", "FUGA-PORTAL")
-                        .header("X-Request-Id", "REQ-1")
-                        .header("X-Trace-Id", "TRACE-1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+    mockMvc
+        .perform(
+            post("/api/v1/shipment-requests")
+                .header("X-Client-System-Id", "HOGE-DIRECT-PORTAL")
+                .header("X-Request-Id", "REQ-1")
+                .header("X-Trace-Id", "TRACE-1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
                                 {
                                   "partnerRequestId": "FG202606170001",
                                   "partnerOrderId": "FGO202606170001",
@@ -87,106 +91,115 @@ class ShipmentGatewayApiIT {
                                   "shippingReleaseAt": "2099-06-18T09:00:00"
                                 }
                                 """))
-                .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.registrationStatus").value("ACCEPTED"))
-                .andExpect(jsonPath("$.currentStatus").value("WAITING_SHIPPING_RELEASE"));
-    }
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.registrationStatus").value("ACCEPTED"))
+        .andExpect(jsonPath("$.currentStatus").value("WAITING_SHIPPING_RELEASE"));
+  }
 
-    @Test
-    void shouldReturnShipmentStatusApi() throws Exception {
-        OrderHeaderEntity order = new OrderHeaderEntity();
-        order.setOrderId("O202606170010");
-        order.setPartnerOrderId("FO202606170010");
-        order.setPartnerRequestId("FG202606170010");
-        order.setOrderSource(OrderSource.FOO);
-        order.setPartnerPriorityLevel(0);
-        order.setShippingPriorityClass(ShippingPriorityClass.NORMAL);
-        order.setCustomerId("C00000000001");
-        order.setOrderStatus(OrderStatus.WAITING_BAR_REQUEST);
-        order.setShipmentStatus(OrderStatus.WAITING_BAR_REQUEST);
-        order.setCarrierCode(CarrierCode.BAR);
-        order.setDeliveryZipCode("1000001");
-        order.setDeliveryAddress("Tokyo");
-        order.setCreatedAt(LocalDateTime.now());
-        order.setUpdatedAt(LocalDateTime.now());
-        orderHeaderRepository.save(order);
+  @Test
+  void shouldReturnShipmentStatusApi() throws Exception {
+    OrderHeaderEntity order = new OrderHeaderEntity();
+    order.setOrderId("O202606170010");
+    order.setPartnerOrderId("FO202606170010");
+    order.setPartnerRequestId("FG202606170010");
+    order.setOrderSource(OrderSource.FOO);
+    order.setPartnerPriorityLevel(0);
+    order.setShippingPriorityClass(ShippingPriorityClass.NORMAL);
+    order.setCustomerId("C00000000001");
+    order.setOrderStatus(OrderStatus.WAITING_BAR_REQUEST);
+    order.setShipmentStatus(OrderStatus.WAITING_BAR_REQUEST);
+    order.setCarrierCode(CarrierCode.BAR);
+    order.setDeliveryZipCode("1000001");
+    order.setDeliveryAddress("Tokyo");
+    order.setCreatedAt(LocalDateTime.now());
+    order.setUpdatedAt(LocalDateTime.now());
+    orderHeaderRepository.save(order);
 
-        ShipmentRequestEntity request = new ShipmentRequestEntity();
-        request.setShipmentRequestId("SHP-1");
-        request.setOrderId(order.getOrderId());
-        request.setCarrierCode(CarrierCode.BAR);
-        request.setOrderSource(OrderSource.FOO);
-        request.setPartnerPriorityLevel(0);
-        request.setShippingPriorityClass(ShippingPriorityClass.NORMAL);
-        request.setShipmentRequestStatus(ShipmentRequestStatus.PENDING);
-        request.setQueueEnqueuedAt(LocalDateTime.now());
-        request.setNextRequestAfter(LocalDateTime.now());
-        shipmentRequestRepository.save(request);
+    ShipmentRequestEntity request = new ShipmentRequestEntity();
+    request.setShipmentRequestId("SHP-1");
+    request.setOrderId(order.getOrderId());
+    request.setCarrierCode(CarrierCode.BAR);
+    request.setOrderSource(OrderSource.FOO);
+    request.setPartnerPriorityLevel(0);
+    request.setShippingPriorityClass(ShippingPriorityClass.NORMAL);
+    request.setShipmentRequestStatus(ShipmentRequestStatus.PENDING);
+    request.setQueueEnqueuedAt(LocalDateTime.now());
+    request.setNextRequestAfter(LocalDateTime.now());
+    shipmentRequestRepository.save(request);
 
-        DeliveryStatusCurrentEntity current = new DeliveryStatusCurrentEntity();
-        current.setOrderId(order.getOrderId());
-        current.setLatestStatusCode("WAITING_BAR_REQUEST");
-        current.setLatestStatusName("WAITING_BAR_REQUEST");
-        current.setLatestStatusSeq(0);
-        current.setLatestStatusAt(LocalDateTime.now());
-        current.setLastReceivedAt(LocalDateTime.now());
-        deliveryStatusCurrentRepository.save(current);
+    DeliveryStatusCurrentEntity current = new DeliveryStatusCurrentEntity();
+    current.setOrderId(order.getOrderId());
+    current.setLatestStatusCode("WAITING_BAR_REQUEST");
+    current.setLatestStatusName("WAITING_BAR_REQUEST");
+    current.setLatestStatusSeq(0);
+    current.setLatestStatusAt(LocalDateTime.now());
+    current.setLastReceivedAt(LocalDateTime.now());
+    deliveryStatusCurrentRepository.save(current);
 
-        mockMvc.perform(get("/api/v1/shipment-status/FO202606170010")
-                        .header("X-Client-System-Id", "FOO-STATUS-CLIENT")
-                        .header("X-Trace-Id", "TRACE-GET-1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.partnerOrderId").value("FO202606170010"))
-                .andExpect(jsonPath("$.deliveryCompanyCode").value("BAR"))
-                .andExpect(jsonPath("$.currentStatus").value("WAITING_BAR_REQUEST"));
+    mockMvc
+        .perform(
+            get("/api/v1/shipment-status/FO202606170010")
+                .header("X-Client-System-Id", "FOO-STATUS-CLIENT")
+                .header("X-Trace-Id", "TRACE-GET-1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.partnerOrderId").value("FO202606170010"))
+        .andExpect(jsonPath("$.deliveryCompanyCode").value("BAR"))
+        .andExpect(jsonPath("$.currentStatus").value("WAITING_BAR_REQUEST"));
 
-        mockMvc.perform(get("/api/v1/shipment-status/FG202606170010")
-                        .header("X-Client-System-Id", "FUGA-PORTAL")
-                        .header("X-Trace-Id", "TRACE-GET-2"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.partnerRequestId").value("FG202606170010"))
-                .andExpect(jsonPath("$.partnerOrderId").value("FO202606170010"));
+    mockMvc
+        .perform(
+            get("/api/v1/shipment-status/FG202606170010")
+                .header("X-Client-System-Id", "HOGE-DIRECT-PORTAL")
+                .header("X-Trace-Id", "TRACE-GET-2"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.partnerRequestId").value("FG202606170010"))
+        .andExpect(jsonPath("$.partnerOrderId").value("FO202606170010"));
 
-        mockMvc.perform(get("/api/v1/shipment-status/FG202606170010")
-                        .header("X-Client-System-Id", "FOO-STATUS-CLIENT")
-                        .header("X-Trace-Id", "TRACE-GET-3"))
-                .andExpect(status().isNotFound());
-    }
+    mockMvc
+        .perform(
+            get("/api/v1/shipment-status/FG202606170010")
+                .header("X-Client-System-Id", "FOO-STATUS-CLIENT")
+                .header("X-Trace-Id", "TRACE-GET-3"))
+        .andExpect(status().isNotFound());
+  }
 
-    @Test
-    void shouldAcceptBarDeliveryResultApi() throws Exception {
-        OrderHeaderEntity order = new OrderHeaderEntity();
-        order.setOrderId("O202606170011");
-        order.setPartnerOrderId("FO202606170011");
-        order.setPartnerRequestId("FG202606170011");
-        order.setOrderSource(OrderSource.FOO);
-        order.setPartnerPriorityLevel(0);
-        order.setShippingPriorityClass(ShippingPriorityClass.NORMAL);
-        order.setCustomerId("C00000000001");
-        order.setOrderStatus(OrderStatus.BAR_ACCEPTED);
-        order.setShipmentStatus(OrderStatus.BAR_ACCEPTED);
-        order.setCarrierCode(CarrierCode.BAR);
-        order.setDeliveryZipCode("1000001");
-        order.setDeliveryAddress("Tokyo");
-        order.setCreatedAt(LocalDateTime.now());
-        order.setUpdatedAt(LocalDateTime.now());
-        orderHeaderRepository.save(order);
+  @Test
+  void shouldAcceptBarDeliveryResultApi() throws Exception {
+    OrderHeaderEntity order = new OrderHeaderEntity();
+    order.setOrderId("O202606170011");
+    order.setPartnerOrderId("FO202606170011");
+    order.setPartnerRequestId("FG202606170011");
+    order.setOrderSource(OrderSource.FOO);
+    order.setPartnerPriorityLevel(0);
+    order.setShippingPriorityClass(ShippingPriorityClass.NORMAL);
+    order.setCustomerId("C00000000001");
+    order.setOrderStatus(OrderStatus.BAR_ACCEPTED);
+    order.setShipmentStatus(OrderStatus.BAR_ACCEPTED);
+    order.setCarrierCode(CarrierCode.BAR);
+    order.setDeliveryZipCode("1000001");
+    order.setDeliveryAddress("Tokyo");
+    order.setCreatedAt(LocalDateTime.now());
+    order.setUpdatedAt(LocalDateTime.now());
+    orderHeaderRepository.save(order);
 
-        ShipmentRequestEntity request = new ShipmentRequestEntity();
-        request.setShipmentRequestId("SHP-11");
-        request.setOrderId(order.getOrderId());
-        request.setCarrierCode(CarrierCode.BAR);
-        request.setOrderSource(OrderSource.FOO);
-        request.setPartnerPriorityLevel(0);
-        request.setShippingPriorityClass(ShippingPriorityClass.NORMAL);
-        request.setShipmentRequestStatus(ShipmentRequestStatus.ACCEPTED);
-        request.setQueueEnqueuedAt(LocalDateTime.now());
-        request.setNextRequestAfter(LocalDateTime.now());
-        shipmentRequestRepository.save(request);
+    ShipmentRequestEntity request = new ShipmentRequestEntity();
+    request.setShipmentRequestId("SHP-11");
+    request.setOrderId(order.getOrderId());
+    request.setCarrierCode(CarrierCode.BAR);
+    request.setOrderSource(OrderSource.FOO);
+    request.setPartnerPriorityLevel(0);
+    request.setShippingPriorityClass(ShippingPriorityClass.NORMAL);
+    request.setShipmentRequestStatus(ShipmentRequestStatus.ACCEPTED);
+    request.setQueueEnqueuedAt(LocalDateTime.now());
+    request.setNextRequestAfter(LocalDateTime.now());
+    shipmentRequestRepository.save(request);
 
-        mockMvc.perform(post("/api/v1/delivery-results/bar")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+    mockMvc
+        .perform(
+            post("/api/v1/delivery-results/bar")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
                                 {
                                   "barShipmentId": "BARS202606170011",
                                   "orderId": "O202606170011",
@@ -203,12 +216,71 @@ class ShipmentGatewayApiIT {
                                   "driverComment": null
                                 }
                                 """))
-                .andExpect(status().isAccepted());
+        .andExpect(status().isAccepted());
 
-        mockMvc.perform(get("/api/v1/shipment-status/FO202606170011")
-                        .header("X-Client-System-Id", "FOO-STATUS-CLIENT"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.latestEvent.reasonCategory").value("ADDRESS_CORRECTED"))
-                .andExpect(jsonPath("$.latestEvent.displayStatusName").value("住所補正対応中"));
-    }
+    mockMvc
+        .perform(
+            get("/api/v1/shipment-status/FO202606170011")
+                .header("X-Client-System-Id", "FOO-STATUS-CLIENT"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.latestEvent.reasonCategory").value("ADDRESS_CORRECTED"))
+        .andExpect(jsonPath("$.latestEvent.displayStatusName").value("住所補正対応中"));
+  }
+
+  @Test
+  void shouldCancelWaitingShipmentApi() throws Exception {
+    OrderHeaderEntity order = new OrderHeaderEntity();
+    order.setOrderId("O202606170012");
+    order.setPartnerOrderId("FO202606170012");
+    order.setPartnerRequestId("FG202606170012");
+    order.setOrderSource(OrderSource.FOO);
+    order.setPartnerPriorityLevel(0);
+    order.setShippingPriorityClass(ShippingPriorityClass.NORMAL);
+    order.setCustomerId("C00000000001");
+    order.setOrderStatus(OrderStatus.WAITING_BAR_REQUEST);
+    order.setShipmentStatus(OrderStatus.WAITING_BAR_REQUEST);
+    order.setCarrierCode(CarrierCode.BAR);
+    order.setDeliveryZipCode("1000001");
+    order.setDeliveryAddress("Tokyo");
+    order.setCreatedAt(LocalDateTime.now());
+    order.setUpdatedAt(LocalDateTime.now());
+    orderHeaderRepository.save(order);
+
+    ShipmentRequestEntity request = new ShipmentRequestEntity();
+    request.setShipmentRequestId("SHP-12");
+    request.setOrderId(order.getOrderId());
+    request.setCarrierCode(CarrierCode.BAR);
+    request.setOrderSource(OrderSource.FOO);
+    request.setPartnerPriorityLevel(0);
+    request.setShippingPriorityClass(ShippingPriorityClass.NORMAL);
+    request.setShipmentRequestStatus(ShipmentRequestStatus.PENDING);
+    request.setQueueEnqueuedAt(LocalDateTime.now());
+    request.setNextRequestAfter(LocalDateTime.now());
+    shipmentRequestRepository.save(request);
+
+    when(stockKeeperClient.release(any()))
+        .thenReturn(
+            new StockReservationOperationResponse(
+                "RSV-12",
+                "RELEASED",
+                List.of(
+                    new StockReservationOperationResponse.OperationResult(
+                        "ITM0000001", "WH-TYO-01", 2, "RELEASED", 100, 0, 100))));
+
+    mockMvc
+        .perform(
+            post("/api/v1/internal/orders/O202606170012/cancel")
+                .header("X-Client-System-Id", "HOGE-OPS-PORTAL")
+                .header("X-Trace-Id", "TRACE-CANCEL-1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                                {
+                                  "cancelReason": "manual operation cancel"
+                                }
+                                """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.cancelStatus").value("CANCELLED"))
+        .andExpect(jsonPath("$.currentStatus").value("CANCELLED"));
+  }
 }

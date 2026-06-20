@@ -14,6 +14,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "hoge.files")
 public class BatchFileProperties {
 
-    /** アーカイブ出力ファイルディレクトリ。 */
-    private String archiveDir;
+  /** アーカイブ出力ファイルディレクトリ。 */
+  private String archiveDir;
 }

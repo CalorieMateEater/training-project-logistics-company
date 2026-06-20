@@ -14,43 +14,33 @@ package jp.co.hoge.orderhub.common.dto;
  * @author Takuya Yamamoto
  */
 public record ShipmentStatusResponse(
-        String partnerOrderId,
-        String partnerRequestId,
-        String orderId,
-        String currentStatus,
-        String deliveryCompanyCode,
-        String latestStatusDatetime,
-        Allocation allocation,
-        LatestEvent latestEvent
-) {
+    String partnerOrderId,
+    String partnerRequestId,
+    String orderId,
+    String currentStatus,
+    String deliveryCompanyCode,
+    String latestStatusDatetime,
+    Allocation allocation,
+    LatestEvent latestEvent) {
 
-    /**
-     * 配送会社割当情報。
-     *
-     * @param allocationStatus 割当状態
-     * @param deliveryCompanyCode 配送会社コード
-     * @author Takuya Yamamoto
-     */
-    public record Allocation(
-            String allocationStatus,
-            String deliveryCompanyCode
-    ) {
-    }
+  /**
+   * 配送会社割当情報。
+   *
+   * @param allocationStatus 割当状態
+   * @param deliveryCompanyCode 配送会社コード
+   * @author Takuya Yamamoto
+   */
+  public record Allocation(String allocationStatus, String deliveryCompanyCode) {}
 
-    /**
-     * 最新配送イベント情報。
-     *
-     * @param statusCode ステータスコード
-     * @param statusLabel ステータス名称
-     * @param reasonCategory 理由分類
-     * @param displayStatusName 表示用状態名
-     * @author Takuya Yamamoto
-     */
-    public record LatestEvent(
-            String statusCode,
-            String statusLabel,
-            String reasonCategory,
-            String displayStatusName
-    ) {
-    }
+  /**
+   * 最新配送イベント情報。
+   *
+   * @param statusCode ステータスコード
+   * @param statusLabel ステータス名称
+   * @param reasonCategory 理由分類
+   * @param displayStatusName 表示用状態名
+   * @author Takuya Yamamoto
+   */
+  public record LatestEvent(
+      String statusCode, String statusLabel, String reasonCategory, String displayStatusName) {}
 }

@@ -13,20 +13,14 @@ import java.util.List;
  * @author Takuya Yamamoto
  */
 public record StockReservationRequest(
-        @NotBlank String orderId,
-        @Valid @NotEmpty List<ReservationItem> items
-) {
+    @NotBlank String orderId, @Valid @NotEmpty List<ReservationItem> items) {
 
-    /**
-     * 在庫引当対象の商品明細。
-     *
-     * @param itemCode 商品コード
-     * @param quantity 引当数量
-     * @author Takuya Yamamoto
-     */
-    public record ReservationItem(
-            @NotBlank String itemCode,
-            int quantity
-    ) {
-    }
+  /**
+   * 在庫引当対象の商品明細。
+   *
+   * @param itemCode 商品コード
+   * @param quantity 引当数量
+   * @author Takuya Yamamoto
+   */
+  public record ReservationItem(@NotBlank String itemCode, int quantity) {}
 }

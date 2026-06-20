@@ -6,9 +6,10 @@ package jp.co.hoge.orderhub.common.domain;
  * @author Takuya Yamamoto
  */
 public enum ShipmentRequestStatus {
-    PENDING,
-    WAITING_BUSINESS_HOURS,
-    REQUESTING,
-    ACCEPTED,
-    FAILED
+  PENDING,
+  WAITING_BUSINESS_HOURS,
+  REQUESTING,
+  ACCEPTED,
+  FAILED,
+  CANCELLED
 }

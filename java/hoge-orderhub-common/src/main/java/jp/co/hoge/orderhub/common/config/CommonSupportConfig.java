@@ -13,13 +13,13 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @EnableConfigurationProperties(OrderHubInternalApiProperties.class)
 public class CommonSupportConfig {
-    /**
-     * システム標準クロックを生成する。
-     *
-     * @return システム標準クロック
-     */
-    @Bean
-    Clock systemClock() {
-        return Clock.systemDefaultZone();
-    }
+  /**
+   * システム標準クロックを生成する。
+   *
+   * @return システム標準クロック
+   */
+  @Bean
+  Clock systemClock() {
+    return Clock.systemDefaultZone();
+  }
 }

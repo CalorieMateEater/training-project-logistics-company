@@ -21,6 +21,8 @@ logs/
 **/build/
 **/.gradle/
 java/.gradle/
+java/.gradle-user-home/
+**/bin/
 
 # Local runtime data
 **/data/

@@ -10,13 +10,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
  *
  * @author Takuya Yamamoto
  */
-public interface DeliveryStatusHistoryRepository extends JpaRepository<DeliveryStatusHistoryEntity, DeliveryStatusHistoryId> {
+public interface DeliveryStatusHistoryRepository
+    extends JpaRepository<DeliveryStatusHistoryEntity, DeliveryStatusHistoryId> {
 
-    /**
-     * 指定注文の配送状態履歴をステータス連番順に取得する。
-     *
-     * @param orderId 注文 ID
-     * @return 配送状態履歴一覧
-     */
-    List<DeliveryStatusHistoryEntity> findByOrderIdOrderByStatusSeqAsc(String orderId);
+  /**
+   * 指定注文の配送状態履歴をステータス連番順に取得する。
+   *
+   * @param orderId 注文 ID
+   * @return 配送状態履歴一覧
+   */
+  List<DeliveryStatusHistoryEntity> findByOrderIdOrderByStatusSeqAsc(String orderId);
 }

@@ -14,10 +14,8 @@ import jp.co.hoge.orderhub.common.dto.BarDeliveryResultRequest;
  * @author Takuya Yamamoto
  */
 public record BarDeliveryResultContext(
-        BarDeliveryResultRequest request,
-        String latestDisplayStatusName,
-        String rawPayloadHash,
-        LocalDateTime occurredAt,
-        LocalDateTime now
-) {
-}
+    BarDeliveryResultRequest request,
+    String latestDisplayStatusName,
+    String rawPayloadHash,
+    LocalDateTime occurredAt,
+    LocalDateTime now) {}

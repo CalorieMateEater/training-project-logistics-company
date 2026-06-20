@@ -6,8 +6,8 @@ package jp.co.hoge.orderhub.common.domain;
  * @author Takuya Yamamoto
  */
 public enum NotificationType {
-    FOO_ACK,
-    FOO_STATUS,
-    BAZ_BILLING,
-    QUX_ORDER
+  FOO_ACK,
+  FOO_STATUS,
+  BAZ_BILLING,
+  QUX_ORDER
 }

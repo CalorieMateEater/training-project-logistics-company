@@ -22,17 +22,15 @@ import jp.co.hoge.orderhub.common.domain.NotificationType;
  * @author Takuya Yamamoto
  */
 public record NotificationHistoryRecord(
-        String notificationId,
-        String orderId,
-        NotificationType notificationType,
-        NotificationStatus notificationStatus,
-        String payloadSummary,
-        String notificationKey,
-        String eventType,
-        String referenceNotificationId,
-        String displayStatusName,
-        String destination,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
-) {
-}
+    String notificationId,
+    String orderId,
+    NotificationType notificationType,
+    NotificationStatus notificationStatus,
+    String payloadSummary,
+    String notificationKey,
+    String eventType,
+    String referenceNotificationId,
+    String displayStatusName,
+    String destination,
+    LocalDateTime createdAt,
+    LocalDateTime updatedAt) {}

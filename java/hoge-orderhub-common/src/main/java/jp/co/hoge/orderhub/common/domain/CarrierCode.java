@@ -6,5 +6,6 @@ package jp.co.hoge.orderhub.common.domain;
  * @author Takuya Yamamoto
  */
 public enum CarrierCode {
-    BAR
+  BAR,
+  FUGA
 }

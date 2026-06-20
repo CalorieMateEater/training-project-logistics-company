@@ -16,9 +16,9 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "hoge.files")
 public class WorkerFileProperties {
 
-    /** Foo向け受付通知ファイル出力ディレクトリ。 */
-    private String fooAckDir;
+  /** Foo向け受付通知ファイル出力ディレクトリ。 */
+  private String fooAckDir;
 
-    /** Foo向け配送結果通知ファイル出力ディレクトリ。 */
-    private String fooStatusDir;
+  /** Foo向け配送結果通知ファイル出力ディレクトリ。 */
+  private String fooStatusDir;
 }

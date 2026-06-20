@@ -16,15 +16,15 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class CustomerStatusApiIT {
-    @Autowired
-    private MockMvc mockMvc;
+  @Autowired private MockMvc mockMvc;
 
-    @Test
-    void shouldReturnSeededCustomer() throws Exception {
-        mockMvc.perform(get("/api/v1/customers/C00000000001/status"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.customerId").value("C00000000001"))
-                .andExpect(jsonPath("$.status").value("ACTIVE"))
-                .andExpect(jsonPath("$.memberRank").value("GOLD"));
-    }
+  @Test
+  void shouldReturnSeededCustomer() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/customers/C00000000001/status"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.customerId").value("C00000000001"))
+        .andExpect(jsonPath("$.status").value("ACTIVE"))
+        .andExpect(jsonPath("$.memberRank").value("GOLD"));
+  }
 }

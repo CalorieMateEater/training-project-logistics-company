@@ -8,5 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
  *
  * @author Takuya Yamamoto
  */
-public interface BarIdempotencyHistoryRepository extends JpaRepository<BarIdempotencyHistoryEntity, String> {
-}
+public interface BarIdempotencyHistoryRepository
+    extends JpaRepository<BarIdempotencyHistoryEntity, String> {}

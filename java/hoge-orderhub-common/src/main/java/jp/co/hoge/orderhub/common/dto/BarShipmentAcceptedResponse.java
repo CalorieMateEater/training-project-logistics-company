@@ -11,10 +11,8 @@ package jp.co.hoge.orderhub.common.dto;
  * @author Takuya Yamamoto
  */
 public record BarShipmentAcceptedResponse(
-        String barShipmentId,
-        String shipmentRequestId,
-        String acceptanceStatus,
-        String acceptedAt,
-        boolean duplicate
-) {
-}
+    String barShipmentId,
+    String shipmentRequestId,
+    String acceptanceStatus,
+    String acceptedAt,
+    boolean duplicate) {}

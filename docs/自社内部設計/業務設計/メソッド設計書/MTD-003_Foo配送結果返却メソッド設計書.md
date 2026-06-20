@@ -6,7 +6,7 @@
 | メソッド設計書ID | `MTD-003` |
 | 対応処理機能ID | `PGD-003` |
 | 対象論理機能 | Foo配送結果返却 |
-| 関連実装クラス | `jp.co.hoge.orderhubworker.service.FooStatusNotificationWorkerService` |
+| 関連処理設計書ID | `PDS-006` |
 
 ## 2. 対象メソッド
 | メソッド | 種別 | 説明 |

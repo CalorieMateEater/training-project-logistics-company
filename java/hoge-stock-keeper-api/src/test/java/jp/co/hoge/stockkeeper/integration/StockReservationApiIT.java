@@ -17,14 +17,16 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class StockReservationApiIT {
-    @Autowired
-    private MockMvc mockMvc;
+  @Autowired private MockMvc mockMvc;
 
-    @Test
-    void shouldReserveStockByApi() throws Exception {
-        mockMvc.perform(post("/api/v1/stocks/reservations")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+  @Test
+  void shouldReserveStockByApi() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/stocks/reservations")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
                                 {
                                   "orderId": "O202606170001",
                                   "items": [
@@ -32,8 +34,9 @@ class StockReservationApiIT {
                                   ]
                                 }
                                 """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("RESERVED"))
-                .andExpect(jsonPath("$.results[0].reservedQuantity").value(2));
-    }
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("RESERVED"))
+        .andExpect(jsonPath("$.results[0].reservedQuantity").value(2))
+        .andExpect(jsonPath("$.results[0].warehouseLocationCode").value("WH-TYO-01"));
+  }
 }

@@ -6,8 +6,8 @@
 | 処理設計書ID | `PDS-004` |
 | 関連詳細業務フローID | `DFL-001` |
 | 処理名 | 配送結果受付API |
-| 開始契機 | Bar社からの `POST /api/v1/delivery-results/bar` |
-| 終了条件 | 受付監査を記録し、Bar社へ応答を返却し、状態反映要求を起票すること |
+| 開始契機 | Bar社またはFuga社からの `POST /api/v1/delivery-results/{carrier}` |
+| 終了条件 | 受付監査を記録し、通知元配送会社へ応答を返却し、状態反映要求を起票すること |
 
 ## 2. フロー図
 ```mermaid
@@ -25,10 +25,10 @@ flowchart TD
 | 手順 | 内容 |
 | --- | --- |
 | 1 | クライアント証明書、接続元、必須ヘッダを確認する |
-| 2 | `bar_shipment_id`、`status_seq`、`delivery_status`、`event_datetime` を検証する |
+| 2 | `carrier_shipment_id`、`status_seq`、`delivery_status`、`event_datetime` を検証する |
 | 3 | 受信電文原文と受付結果を `th_if_history` に記録する |
 | 4 | 配送状態取込Worker向けの内部状態反映要求を起票する |
-| 5 | Bar社へ `202 Accepted` またはエラー応答を返却する |
+| 5 | 通知元配送会社へ `202 Accepted` またはエラー応答を返却する |
 
 ## 4. 応答方針
 - 認証失敗は `401/403` を返却する。

@@ -6,8 +6,8 @@ package jp.co.hoge.orderhub.common.domain;
  * @author Takuya Yamamoto
  */
 public enum NotificationStatus {
-    PENDING,
-    SENT,
-    SKIPPED,
-    ERROR
+  PENDING,
+  SENT,
+  SKIPPED,
+  ERROR
 }

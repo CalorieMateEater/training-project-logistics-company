@@ -8,5 +8,4 @@ import org.springframework.data.jpa.repository.JpaRepository;
  *
  * @author Takuya Yamamoto
  */
-public interface CustomerMasterRepository extends JpaRepository<CustomerMasterEntity, String> {
-}
+public interface CustomerMasterRepository extends JpaRepository<CustomerMasterEntity, String> {}

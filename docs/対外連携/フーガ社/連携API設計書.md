@@ -1,36 +1,91 @@
-# 配送連携API設計書 フーガ社 概要
+# 連携API設計書 フーガ社
 
-## 1. 文書目的
-
-本書は、フーガ社からHoge社の配送連携APIを利用する際の全体像を示す概要資料である。  
-実装仕様と接続基盤仕様を分け、利用側アプリ開発と接続運用の責任範囲を明確にする。
+## 1. 目的
+本書は、Hoge社とフーガ社の配送委託連携で利用するAPIの概要を整理する。
+フーガ社は注文元ではなく、特殊配送を担当する配送委託先である。
 
 ## 2. 対象IF
 
-- IF-ID: `IF-FUGA-HOGE-003`
-- IF名: 出荷依頼受付API
-- IF-ID: `IF-FUGA-HOGE-004`
-- IF名: 出荷状態照会API
+- IF-ID: `IF-HOGE-FUGA-001`
+- IF名: 特殊配送依頼送信API
+- 方向: Hoge社 → フーガ社
 
-## 3. 資料構成
+- IF-ID: `IF-FUGA-HOGE-002`
+- IF名: 特殊配送結果通知API
+- 方向: フーガ社 → Hoge社
 
-| 資料 | 主な対象者 | 記載内容 |
-| --- | --- | --- |
-| [連携APIアプリ設計書](/C:/Users/yaku_/Documents/training-project-01/docs/対外連携/フーガ社/連携APIアプリ設計書.md) | アプリ開発者、保守担当 | リクエスト、レスポンス、検索キー、業務制約、エラー応答 |
-| [連携API基盤設計書](/C:/Users/yaku_/Documents/training-project-01/docs/対外連携/フーガ社/連携API基盤設計書.md) | 基盤担当、運用担当 | 接続経路、認証、ネットワーク、再送、レート制限、監視 |
+## 3. 連携概要
 
-## 4. フーガ社連携の要点
+| IF-ID | 方向 | 方式 | 概要 |
+| --- | --- | --- | --- |
+| `IF-HOGE-FUGA-001` | Hoge社 → フーガ社 | REST API / HTTPS | 冷蔵便、大型商品、遠方配送などの特殊配送案件をフーガ社へ依頼する |
+| `IF-FUGA-HOGE-002` | フーガ社 → Hoge社 | REST API / HTTPS | フーガ社で処理中の配送案件について、受付済・配送中・配送完了・異常終了などの結果を通知する |
 
-- フーガ社は配送会社ではなく、Hoge社APIの利用者である
-- `出荷依頼受付API` はフーガ社からHoge社への登録APIである
-- `出荷状態照会API` は共有APIだが、本書ではフーガ社利用条件を主対象とする
-- Hoge社は本APIで受け付けた注文を `order_source=FUGA` として保持する
-- フーガ社経由の注文は Bar向け優先配送区分を `NORMAL` として扱う
-- フーガ社からの登録要求は、そのまま配送会社確定を意味せず `配送条件判定` を経て送信待ちキューへ登録され、バー社営業時間内に連携される
-- 状態照会は最終状態だけでなく、配送会社割当前後の中間状態も返却対象とする
+## 4. 業務前提
 
-## 5. 関連資料
+- Hoge社は商品在庫を保有し、在庫引当と倉庫場所確定を自社で行う
+- フーガ社は配送事業者として、特殊配送条件に該当する案件のみを担当する
+- Hoge社は注文元を `FOO` または `HOGE` として管理する
+- フーガ社連携では、注文元コード、配送優先度、倉庫場所、温度帯、サイズ区分を配送依頼電文に含める
+- フーガ社からの配送結果は、Hoge社が配送状態管理、Foo社返却、Baz/Qux通知に利用する
 
-- バー社向け連携仕様は [連携API設計書](/C:/Users/yaku_/Documents/training-project-01/docs/対外連携/バー社/連携API設計書.md) を参照する
-- 全体のIF位置づけは [外部インターフェース一覧](/C:/Users/yaku_/Documents/training-project-01/docs/共通資料/外部インターフェース一覧.md) を参照する
-- Foo社の状態照会利用条件は [外部インターフェース一覧](/C:/Users/yaku_/Documents/training-project-01/docs/共通資料/外部インターフェース一覧.md) および共通の通信設計を参照する
+## 5. 特殊配送依頼送信API
+
+### 5.1 概要
+
+| 項目 | 内容 |
+| --- | --- |
+| IF-ID | `IF-HOGE-FUGA-001` |
+| メソッド | `POST` |
+| パス | `/api/v1/fuga-shipments` |
+| 呼出元 | Hoge OrderHub Worker |
+| 呼出先 | Fuga Delivery Center |
+| 用途 | 特殊配送依頼登録 |
+
+### 5.2 主な送信項目
+
+- `order_id`
+- `partner_order_id`
+- `shipment_request_id`
+- `order_source_code`
+- `shipping_priority_class`
+- `source_warehouse_location_code`
+- `temperature_zone`
+- `size_type`
+- `requested_ship_date`
+- `delivery_zip_code`
+- `delivery_address`
+- `items`
+
+## 6. 特殊配送結果通知API
+
+### 6.1 概要
+
+| 項目 | 内容 |
+| --- | --- |
+| IF-ID | `IF-FUGA-HOGE-002` |
+| メソッド | `POST` |
+| パス | `/api/v1/delivery-results/fuga` |
+| 呼出元 | Fuga Delivery Center |
+| 呼出先 | Hoge OrderHub |
+| 用途 | 特殊配送イベント通知 |
+
+### 6.2 主な通知項目
+
+- `fuga_shipment_id`
+- `order_id`
+- `partner_order_id`
+- `status_seq`
+- `delivery_status`
+- `status_label`
+- `event_occurred_at`
+- `temperature_zone`
+- `size_type`
+- `reason_code`
+- `reason_category`
+
+## 7. 関連資料
+
+- [連携APIアプリ設計書](./連携APIアプリ設計書.md)
+- [連携API基盤設計書](./連携API基盤設計書.md)
+- [外部インターフェース一覧](../../共通資料/外部インターフェース一覧.md)

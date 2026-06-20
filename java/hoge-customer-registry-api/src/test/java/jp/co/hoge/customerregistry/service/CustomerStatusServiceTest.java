@@ -17,31 +17,29 @@ import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class CustomerStatusServiceTest {
-    @Mock
-    private CustomerMasterRepository customerMasterRepository;
+  @Mock private CustomerMasterRepository customerMasterRepository;
 
-    @InjectMocks
-    private CustomerStatusService customerStatusService;
+  @InjectMocks private CustomerStatusService customerStatusService;
 
-    @Test
-    void shouldReturnCustomerStatus() {
-        CustomerMasterEntity entity = new CustomerMasterEntity();
-        entity.setCustomerId("C00000000001");
-        entity.setStatus("ACTIVE");
-        entity.setMemberRank("GOLD");
-        when(customerMasterRepository.findById("C00000000001")).thenReturn(Optional.of(entity));
+  @Test
+  void shouldReturnCustomerStatus() {
+    CustomerMasterEntity entity = new CustomerMasterEntity();
+    entity.setCustomerId("C00000000001");
+    entity.setStatus("ACTIVE");
+    entity.setMemberRank("GOLD");
+    when(customerMasterRepository.findById("C00000000001")).thenReturn(Optional.of(entity));
 
-        CustomerStatusResponse response = customerStatusService.findStatus("C00000000001");
+    CustomerStatusResponse response = customerStatusService.findStatus("C00000000001");
 
-        assertThat(response.customerId()).isEqualTo("C00000000001");
-        assertThat(response.status()).isEqualTo("ACTIVE");
-    }
+    assertThat(response.customerId()).isEqualTo("C00000000001");
+    assertThat(response.status()).isEqualTo("ACTIVE");
+  }
 
-    @Test
-    void shouldThrowWhenCustomerMissing() {
-        when(customerMasterRepository.findById("UNKNOWN")).thenReturn(Optional.empty());
+  @Test
+  void shouldThrowWhenCustomerMissing() {
+    when(customerMasterRepository.findById("UNKNOWN")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> customerStatusService.findStatus("UNKNOWN"))
-                .isInstanceOf(ResponseStatusException.class);
-    }
+    assertThatThrownBy(() -> customerStatusService.findStatus("UNKNOWN"))
+        .isInstanceOf(ResponseStatusException.class);
+  }
 }

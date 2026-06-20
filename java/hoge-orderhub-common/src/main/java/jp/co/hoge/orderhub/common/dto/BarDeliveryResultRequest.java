@@ -21,18 +21,16 @@ import jakarta.validation.constraints.NotBlank;
  * @author Takuya Yamamoto
  */
 public record BarDeliveryResultRequest(
-        @NotBlank String barShipmentId,
-        @NotBlank String orderId,
-        @NotBlank String partnerOrderId,
-        int statusSeq,
-        @NotBlank String deliveryStatus,
-        @NotBlank String statusLabel,
-        @NotBlank String eventOccurredAt,
-        String locationCode,
-        String reasonCode,
-        String reasonCategory,
-        Boolean addressCorrected,
-        String addressCorrectionLevel,
-        String driverComment
-) {
-}
+    @NotBlank String barShipmentId,
+    @NotBlank String orderId,
+    @NotBlank String partnerOrderId,
+    int statusSeq,
+    @NotBlank String deliveryStatus,
+    @NotBlank String statusLabel,
+    @NotBlank String eventOccurredAt,
+    String locationCode,
+    String reasonCode,
+    String reasonCategory,
+    Boolean addressCorrected,
+    String addressCorrectionLevel,
+    String driverComment) {}

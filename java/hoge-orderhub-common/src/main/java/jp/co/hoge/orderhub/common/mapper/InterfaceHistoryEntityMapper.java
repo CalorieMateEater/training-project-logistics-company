@@ -12,11 +12,11 @@ import org.mapstruct.Mapper;
 @Mapper(config = CommonMapperConfig.class)
 public interface InterfaceHistoryEntityMapper {
 
-    /**
-     * IF 履歴記録を IF 履歴エンティティへ変換する。
-     *
-     * @param source 変換元レコード
-     * @return IF 履歴エンティティ
-     */
-    InterfaceHistoryEntity toEntity(InterfaceHistoryRecord source);
+  /**
+   * IF 履歴記録を IF 履歴エンティティへ変換する。
+   *
+   * @param source 変換元レコード
+   * @return IF 履歴エンティティ
+   */
+  InterfaceHistoryEntity toEntity(InterfaceHistoryRecord source);
 }

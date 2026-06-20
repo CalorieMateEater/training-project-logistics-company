@@ -13,6 +13,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @Configuration
 @EnableScheduling
 @EnableConfigurationProperties(WorkerFileProperties.class)
-@ConditionalOnProperty(name = "hoge.worker.scheduling.enabled", havingValue = "true", matchIfMissing = true)
-public class SchedulingConfig {
-}
+@ConditionalOnProperty(
+    name = "hoge.worker.scheduling.enabled",
+    havingValue = "true",
+    matchIfMissing = true)
+public class SchedulingConfig {}

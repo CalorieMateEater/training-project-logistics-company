@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.List;
 import jp.co.hoge.orderhub.common.domain.DeliveryStatusCode;
 import jp.co.hoge.orderhub.common.domain.InterfaceDirection;
 import jp.co.hoge.orderhub.common.domain.InterfaceStatus;
@@ -11,14 +12,17 @@ import jp.co.hoge.orderhub.common.domain.NotificationStatus;
 import jp.co.hoge.orderhub.common.domain.NotificationType;
 import jp.co.hoge.orderhub.common.domain.OrderSource;
 import jp.co.hoge.orderhub.common.dto.BarDeliveryResultRequest;
+import jp.co.hoge.orderhub.common.dto.StockReservationOperationResponse;
 import jp.co.hoge.orderhub.common.mapper.NotificationHistoryEntityMapper;
 import jp.co.hoge.orderhub.common.mapper.model.NotificationHistoryRecord;
 import jp.co.hoge.orderhub.common.persistence.entity.DeliveryStatusCurrentEntity;
 import jp.co.hoge.orderhub.common.persistence.entity.OrderHeaderEntity;
+import jp.co.hoge.orderhub.common.persistence.entity.StockReservationResultEntity;
 import jp.co.hoge.orderhub.common.persistence.repository.DeliveryStatusCurrentRepository;
 import jp.co.hoge.orderhub.common.persistence.repository.DeliveryStatusHistoryRepository;
 import jp.co.hoge.orderhub.common.persistence.repository.NotificationHistoryRepository;
 import jp.co.hoge.orderhub.common.persistence.repository.OrderHeaderRepository;
+import jp.co.hoge.orderhub.common.persistence.repository.StockReservationResultRepository;
 import jp.co.hoge.orderhub.common.support.IdFactory;
 import jp.co.hoge.orderhub.common.support.StatusMapper;
 import jp.co.hoge.orderhub.common.support.TimeProvider;
@@ -32,8 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Bar社から返却された配送結果を反映するサービス。
- * 関連処理設計書ID: PDS-004, PDS-005
+ * Bar社から返却された配送結果を反映するサービス。 関連処理機能ID: PGD-006
  *
  * @author Takuya Yamamoto
  */
@@ -42,213 +45,235 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class BarDeliveryResultService {
 
-    /** 住所補正中の表示名。 */
-    private static final String ADDRESS_CORRECTED_DISPLAY_NAME = "住所補正対応中";
+  /** 住所補正中の表示名。 */
+  private static final String ADDRESS_CORRECTED_DISPLAY_NAME = "住所補正対応中";
 
-    /** 注文ヘッダリポジトリ。 */
-    private final OrderHeaderRepository orderHeaderRepository;
+  /** 注文ヘッダリポジトリ。 */
+  private final OrderHeaderRepository orderHeaderRepository;
 
-    /** 配送状態最新リポジトリ。 */
-    private final DeliveryStatusCurrentRepository deliveryStatusCurrentRepository;
+  /** 配送状態最新リポジトリ。 */
+  private final DeliveryStatusCurrentRepository deliveryStatusCurrentRepository;
 
-    /** 配送状態履歴リポジトリ。 */
-    private final DeliveryStatusHistoryRepository deliveryStatusHistoryRepository;
+  /** 配送状態履歴リポジトリ。 */
+  private final DeliveryStatusHistoryRepository deliveryStatusHistoryRepository;
 
-    /** 通知履歴リポジトリ。 */
-    private final NotificationHistoryRepository notificationHistoryRepository;
+  /** 通知履歴リポジトリ。 */
+  private final NotificationHistoryRepository notificationHistoryRepository;
 
-    /** インターフェース履歴記録サービス。 */
-    private final InterfaceHistoryService interfaceHistoryService;
+  /** 在庫引当結果リポジトリ。 */
+  private final StockReservationResultRepository stockReservationResultRepository;
 
-    /** ID 採番サービス。 */
-    private final IdFactory idFactory;
+  /** インターフェース履歴記録サービス。 */
+  private final InterfaceHistoryService interfaceHistoryService;
 
-    /** ステータス変換サービス。 */
-    private final StatusMapper statusMapper;
+  /** ID 採番サービス。 */
+  private final IdFactory idFactory;
 
-    /** 現在時刻提供サービス。 */
-    private final TimeProvider timeProvider;
+  /** ステータス変換サービス。 */
+  private final StatusMapper statusMapper;
 
-    /** 配送結果エンティティマッパー。 */
-    private final ShipmentGatewayEntityMapper shipmentGatewayEntityMapper;
+  /** 現在時刻提供サービス。 */
+  private final TimeProvider timeProvider;
 
-    /** 通知履歴エンティティマッパー。 */
-    private final NotificationHistoryEntityMapper notificationHistoryEntityMapper;
+  /** 在庫管理クライアント。 */
+  private final StockKeeperClient stockKeeperClient;
 
-    /**
-     * Bar社の配送結果通知を受け付けて注文データへ反映する。
-     *
-     * @param request 配送結果リクエスト
-     */
-    @Transactional
-    public void accept(BarDeliveryResultRequest request) {
-        log.info(
-                "APP_DELIVERY_RESULT_START orderId={} barShipmentId={} statusSeq={}",
-                request.orderId(),
-                request.barShipmentId(),
-                request.statusSeq()
-        );
+  /** 配送結果エンティティマッパー。 */
+  private final ShipmentGatewayEntityMapper shipmentGatewayEntityMapper;
 
-        OrderHeaderEntity orderHeader = orderHeaderRepository.findById(request.orderId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "order not found"));
+  /** 通知履歴エンティティマッパー。 */
+  private final NotificationHistoryEntityMapper notificationHistoryEntityMapper;
 
-        DeliveryStatusCurrentEntity current = deliveryStatusCurrentRepository.findById(request.orderId()).orElse(null);
-        if (current != null && request.statusSeq() <= current.getLatestStatusSeq()) {
-            interfaceHistoryService.record(
-                    "IF-BAR-HOGE-002",
-                    InterfaceDirection.INBOUND,
-                    InterfaceStatus.SKIPPED,
-                    request.barShipmentId(),
-                    null,
-                    "202",
-                    "old or duplicated status skipped"
-            );
-            log.info(
-                    "APP_DELIVERY_RESULT_SKIPPED orderId={} barShipmentId={} latestStatusSeq={} requestStatusSeq={}",
-                    request.orderId(),
-                    request.barShipmentId(),
-                    current.getLatestStatusSeq(),
-                    request.statusSeq()
-            );
-            return;
-        }
+  /**
+   * Bar社の配送結果通知を受け付けて注文データへ反映する。
+   *
+   * @param request 配送結果リクエスト
+   */
+  @Transactional
+  public void accept(BarDeliveryResultRequest request) {
+    log.info(
+        "APP_DELIVERY_RESULT_START orderId={} barShipmentId={} statusSeq={}",
+        request.orderId(),
+        request.barShipmentId(),
+        request.statusSeq());
 
-        DeliveryStatusCode statusCode = DeliveryStatusCode.valueOf(request.deliveryStatus());
-        LocalDateTime now = timeProvider.now();
-        LocalDateTime occurredAt = LocalDateTime.parse(request.eventOccurredAt());
-        BarDeliveryResultContext context = new BarDeliveryResultContext(
-                request,
-                resolveDisplayStatusName(request),
-                hash(request.toString()),
-                occurredAt,
-                now
-        );
+    OrderHeaderEntity orderHeader =
+        orderHeaderRepository
+            .findById(request.orderId())
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "order not found"));
 
-        deliveryStatusHistoryRepository.save(shipmentGatewayEntityMapper.toDeliveryStatusHistoryEntity(context));
+    DeliveryStatusCurrentEntity current =
+        deliveryStatusCurrentRepository.findById(request.orderId()).orElse(null);
+    if (current != null && request.statusSeq() <= current.getLatestStatusSeq()) {
+      interfaceHistoryService.record(
+          "IF-BAR-HOGE-002",
+          InterfaceDirection.INBOUND,
+          InterfaceStatus.SKIPPED,
+          request.barShipmentId(),
+          null,
+          "202",
+          "old or duplicated status skipped");
+      log.info(
+          "APP_DELIVERY_RESULT_SKIPPED orderId={} barShipmentId={} latestStatusSeq={} requestStatusSeq={}",
+          request.orderId(),
+          request.barShipmentId(),
+          current.getLatestStatusSeq(),
+          request.statusSeq());
+      return;
+    }
 
-        DeliveryStatusCurrentEntity currentEntity = current == null ? new DeliveryStatusCurrentEntity() : current;
-        shipmentGatewayEntityMapper.updateDeliveryStatusCurrentEntity(context, currentEntity);
-        deliveryStatusCurrentRepository.save(currentEntity);
+    DeliveryStatusCode statusCode = DeliveryStatusCode.valueOf(request.deliveryStatus());
+    LocalDateTime now = timeProvider.now();
+    LocalDateTime occurredAt = LocalDateTime.parse(request.eventOccurredAt());
+    BarDeliveryResultContext context =
+        new BarDeliveryResultContext(
+            request, resolveDisplayStatusName(request), hash(request.toString()), occurredAt, now);
 
-        orderHeader.setOrderStatus(statusMapper.toOrderStatus(statusCode));
-        orderHeader.setShipmentStatus(statusMapper.toOrderStatus(statusCode));
-        orderHeader.setUpdatedAt(now);
-        orderHeaderRepository.save(orderHeader);
+    deliveryStatusHistoryRepository.save(
+        shipmentGatewayEntityMapper.toDeliveryStatusHistoryEntity(context));
 
-        if (orderHeader.getOrderSource() == OrderSource.FOO) {
-            notificationHistoryRepository.save(notificationHistoryEntityMapper.toEntity(
-                    new NotificationHistoryRecord(
-                            idFactory.notificationId(),
-                            orderHeader.getOrderId(),
-                            NotificationType.FOO_STATUS,
-                            NotificationStatus.PENDING,
-                            request.deliveryStatus() + ":" + request.statusLabel(),
-                            "foo-status:" + orderHeader.getOrderId() + ":" + request.statusSeq(),
-                            "STATUS_UPDATED",
-                            null,
-                            currentEntity.getLatestDisplayStatusName(),
-                            "foo-status-file",
-                            now,
-                            now
-                    )
-            ));
-        }
+    DeliveryStatusCurrentEntity currentEntity =
+        current == null ? new DeliveryStatusCurrentEntity() : current;
+    shipmentGatewayEntityMapper.updateDeliveryStatusCurrentEntity(context, currentEntity);
+    deliveryStatusCurrentRepository.save(currentEntity);
 
-        createQuxNotification(orderHeader, currentEntity, request, now);
-        if (statusCode == DeliveryStatusCode.DELIVERED) {
-            createBazFinalNotification(orderHeader, now);
-        }
+    orderHeader.setOrderStatus(statusMapper.toOrderStatus(statusCode));
+    orderHeader.setShipmentStatus(statusMapper.toOrderStatus(statusCode));
+    orderHeader.setUpdatedAt(now);
+    orderHeaderRepository.save(orderHeader);
 
-        interfaceHistoryService.record(
-                "IF-BAR-HOGE-002",
-                InterfaceDirection.INBOUND,
-                InterfaceStatus.SUCCESS,
-                request.barShipmentId(),
+    if (statusCode == DeliveryStatusCode.ACCEPTED) {
+      confirmReservedStock(orderHeader.getOrderId());
+    }
+
+    if (orderHeader.getOrderSource() == OrderSource.FOO) {
+      notificationHistoryRepository.save(
+          notificationHistoryEntityMapper.toEntity(
+              new NotificationHistoryRecord(
+                  idFactory.notificationId(),
+                  orderHeader.getOrderId(),
+                  NotificationType.FOO_STATUS,
+                  NotificationStatus.PENDING,
+                  request.deliveryStatus() + ":" + request.statusLabel(),
+                  "foo-status:" + orderHeader.getOrderId() + ":" + request.statusSeq(),
+                  "STATUS_UPDATED",
+                  null,
+                  currentEntity.getLatestDisplayStatusName(),
+                  "foo-status-file",
+                  now,
+                  now)));
+    }
+
+    createQuxNotification(orderHeader, currentEntity, request, now);
+    if (statusCode == DeliveryStatusCode.DELIVERED) {
+      createBazFinalNotification(orderHeader, now);
+    }
+
+    interfaceHistoryService.record(
+        "IF-BAR-HOGE-002",
+        InterfaceDirection.INBOUND,
+        InterfaceStatus.SUCCESS,
+        request.barShipmentId(),
+        null,
+        "202",
+        "delivery result accepted");
+
+    log.info(
+        "APP_DELIVERY_RESULT_FINISH orderId={} barShipmentId={} deliveryStatus={}",
+        request.orderId(),
+        request.barShipmentId(),
+        request.deliveryStatus());
+  }
+
+  private void createQuxNotification(
+      OrderHeaderEntity orderHeader,
+      DeliveryStatusCurrentEntity currentEntity,
+      BarDeliveryResultRequest request,
+      LocalDateTime now) {
+    notificationHistoryRepository.save(
+        notificationHistoryEntityMapper.toEntity(
+            new NotificationHistoryRecord(
+                idFactory.notificationId(),
+                orderHeader.getOrderId(),
+                NotificationType.QUX_ORDER,
+                NotificationStatus.SENT,
+                request.deliveryStatus(),
+                "qux-status:" + orderHeader.getOrderId() + ":" + request.statusSeq(),
+                "STATUS_UPDATED",
                 null,
-                "202",
-                "delivery result accepted"
-        );
+                currentEntity.getLatestDisplayStatusName(),
+                "order-notice-queue.fifo",
+                now,
+                now)));
+  }
 
-        log.info(
-                "APP_DELIVERY_RESULT_FINISH orderId={} barShipmentId={} deliveryStatus={}",
-                request.orderId(),
-                request.barShipmentId(),
-                request.deliveryStatus()
-        );
+  private void createBazFinalNotification(OrderHeaderEntity orderHeader, LocalDateTime now) {
+    var provisional =
+        notificationHistoryRepository
+            .findFirstByOrderIdAndNotificationTypeAndEventTypeOrderByCreatedAtAsc(
+                orderHeader.getOrderId(), NotificationType.BAZ_BILLING, "PROVISIONAL_BILLING")
+            .orElse(null);
+
+    notificationHistoryRepository.save(
+        notificationHistoryEntityMapper.toEntity(
+            new NotificationHistoryRecord(
+                idFactory.notificationId(),
+                orderHeader.getOrderId(),
+                NotificationType.BAZ_BILLING,
+                NotificationStatus.SENT,
+                DeliveryStatusCode.DELIVERED.name(),
+                "baz-billing:" + orderHeader.getOrderId() + ":final",
+                "FINAL_BILLING",
+                provisional == null ? null : provisional.getNotificationId(),
+                null,
+                "billing-plan-queue",
+                now,
+                now)));
+  }
+
+  private String resolveDisplayStatusName(BarDeliveryResultRequest request) {
+    if (Boolean.TRUE.equals(request.addressCorrected())) {
+      return ADDRESS_CORRECTED_DISPLAY_NAME;
     }
-
-    private void createQuxNotification(
-            OrderHeaderEntity orderHeader,
-            DeliveryStatusCurrentEntity currentEntity,
-            BarDeliveryResultRequest request,
-            LocalDateTime now
-    ) {
-        notificationHistoryRepository.save(notificationHistoryEntityMapper.toEntity(
-                new NotificationHistoryRecord(
-                        idFactory.notificationId(),
-                        orderHeader.getOrderId(),
-                        NotificationType.QUX_ORDER,
-                        NotificationStatus.SENT,
-                        request.deliveryStatus(),
-                        "qux-status:" + orderHeader.getOrderId() + ":" + request.statusSeq(),
-                        "STATUS_UPDATED",
-                        null,
-                        currentEntity.getLatestDisplayStatusName(),
-                        "order-notice-queue.fifo",
-                        now,
-                        now
-                )
-        ));
+    if ("ADDRESS_CORRECTED".equals(request.reasonCategory())) {
+      return ADDRESS_CORRECTED_DISPLAY_NAME;
     }
+    return request.statusLabel();
+  }
 
-    private void createBazFinalNotification(OrderHeaderEntity orderHeader, LocalDateTime now) {
-        var provisional = notificationHistoryRepository
-                .findFirstByOrderIdAndNotificationTypeAndEventTypeOrderByCreatedAtAsc(
-                        orderHeader.getOrderId(),
-                        NotificationType.BAZ_BILLING,
-                        "PROVISIONAL_BILLING"
-                )
-                .orElse(null);
-
-        notificationHistoryRepository.save(notificationHistoryEntityMapper.toEntity(
-                new NotificationHistoryRecord(
-                        idFactory.notificationId(),
-                        orderHeader.getOrderId(),
-                        NotificationType.BAZ_BILLING,
-                        NotificationStatus.SENT,
-                        DeliveryStatusCode.DELIVERED.name(),
-                        "baz-billing:" + orderHeader.getOrderId() + ":final",
-                        "FINAL_BILLING",
-                        provisional == null ? null : provisional.getNotificationId(),
-                        null,
-                        "billing-plan-queue",
-                        now,
-                        now
-                )
-        ));
+  private void confirmReservedStock(String orderId) {
+    List<StockReservationResultEntity> reservationResults =
+        stockReservationResultRepository.findByOrderIdOrderByOrderLineNo(orderId);
+    for (StockReservationResultEntity reservationResult : reservationResults) {
+      if ("SHIPPED_CONFIRMED".equals(reservationResult.getReservationStatus())) {
+        continue;
+      }
+      StockReservationOperationResponse response =
+          stockKeeperClient.shipConfirm(reservationResult.getReservationId());
+      response.results().stream()
+          .filter(result -> result.itemCode().equals(reservationResult.getItemCode()))
+          .findFirst()
+          .ifPresent(
+              result -> {
+                reservationResult.setReservationStatus(result.reservationStatus());
+                reservationResult.setShippedConfirmedQuantity(result.processedQuantity());
+                stockReservationResultRepository.save(reservationResult);
+              });
     }
+  }
 
-    private String resolveDisplayStatusName(BarDeliveryResultRequest request) {
-        if (Boolean.TRUE.equals(request.addressCorrected())) {
-            return ADDRESS_CORRECTED_DISPLAY_NAME;
-        }
-        if ("ADDRESS_CORRECTED".equals(request.reasonCategory())) {
-            return ADDRESS_CORRECTED_DISPLAY_NAME;
-        }
-        return request.statusLabel();
+  private String hash(String source) {
+    try {
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      byte[] hash = digest.digest(source.getBytes(StandardCharsets.UTF_8));
+      StringBuilder builder = new StringBuilder();
+      for (byte value : hash) {
+        builder.append(String.format("%02x", value));
+      }
+      return builder.toString();
+    } catch (NoSuchAlgorithmException exception) {
+      throw new IllegalStateException(exception);
     }
-
-    private String hash(String source) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(source.getBytes(StandardCharsets.UTF_8));
-            StringBuilder builder = new StringBuilder();
-            for (byte value : hash) {
-                builder.append(String.format("%02x", value));
-            }
-            return builder.toString();
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException(exception);
-        }
-    }
+  }
 }

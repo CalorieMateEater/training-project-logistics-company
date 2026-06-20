@@ -10,13 +10,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
  *
  * @author Takuya Yamamoto
  */
-public interface StockReservationResultRepository extends JpaRepository<StockReservationResultEntity, StockReservationResultId> {
+public interface StockReservationResultRepository
+    extends JpaRepository<StockReservationResultEntity, StockReservationResultId> {
 
-    /**
-     * 指定注文の在庫引当結果を明細番号順に取得する。
-     *
-     * @param orderId 注文 ID
-     * @return 在庫引当結果一覧
-     */
-    List<StockReservationResultEntity> findByOrderIdOrderByOrderLineNo(String orderId);
+  /**
+   * 指定注文の在庫引当結果を明細番号順に取得する。
+   *
+   * @param orderId 注文 ID
+   * @return 在庫引当結果一覧
+   */
+  List<StockReservationResultEntity> findByOrderIdOrderByOrderLineNo(String orderId);
 }

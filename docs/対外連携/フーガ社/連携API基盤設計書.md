@@ -1,75 +1,68 @@
-# 配送連携API基盤設計書 フーガ社
+# 連携API基盤設計書 フーガ社
 
 ## 1. 対象IF
 
-- IF-ID: `IF-FUGA-HOGE-003`
-- IF-ID: `IF-FUGA-HOGE-004`
+- `IF-HOGE-FUGA-001` 特殊配送依頼送信API
+- `IF-FUGA-HOGE-002` 特殊配送結果通知API
 
-## 2. 通信構成
-
-### 2.1 フーガ社→Hoge社
+## 2. 通信経路
 
 ```text
-Fuga Shipment Portal
-  → Fuga API送信（出荷依頼 / 状態照会）
-  → Fuga社接続境界
-  → VPN閉域連携
-  → Hoge社 Fuga向け接続境界
-  → Hoge Shipping Gateway
+Hoge OrderHub Worker
+  -> Hoge社 Fuga向け接続境界
+  -> Site-to-Site VPN
+  -> Fuga社接続境界
+  -> Fuga Carrier Gateway
+
+Fuga Delivery Center
+  -> Fuga Carrier Gateway
+  -> Site-to-Site VPN
+  -> Hoge社 Fuga向け接続境界
+  -> 配送状態取込Worker
 ```
 
-## 3. エンドポイント
+## 3. 接続先
 
-| 利用者 | 用途 | FQDN | 備考 |
-| --- | --- | --- | --- |
-| フーガ社 | 出荷依頼受付API | `ship-request.hoge.local` | VPN内専用 |
-| フーガ社 | 状態照会API | `ship-status.hoge.local` | VPN内専用 |
+| 方向 | FQDN | 用途 |
+| --- | --- | --- |
+| Hoge社 → フーガ社 | `fuga-shipment.fuga.local` | 特殊配送依頼送信API |
+| フーガ社 → Hoge社 | `fuga-result.hoge.local` | 特殊配送結果通知API |
 
-## 4. 認証・認可
+## 4. 認証・接続制御
 
 | 項目 | 内容 |
 | --- | --- |
-| 認証方式 | APIキー + 接続元IP制限 |
-| APIキー単位 | フーガ社用、Foo社用を分離 |
-| 鍵ローテーション | 半年ごと |
-| 鍵保管 | Hoge社秘密情報管理基盤 |
-| 経路制御 | 接続元会社ごとに許可CIDRを分離 |
+| 通信方式 | VPN閉域網上の HTTPS |
+| 認証 | mTLS + APIキー |
+| 接続元制御 | 双方の許可CIDRのみ |
+| 冪等性 | Hoge社送信時は `X-Idempotency-Key` を必須 |
+| トレース | `X-Trace-Id` を双方で引き継ぐ |
 
-## 5. タイムアウト・再送
+## 5. タイムアウト・リトライ
 
-| 項目 | フーガ社 |
-| --- | --- |
-| 接続タイムアウト | 1秒 |
-| 応答タイムアウト | 5秒 |
-| 再送回数 | 最大1回 |
-| 再送条件 | 通信失敗、502、503、504 |
+| IF | タイムアウト | リトライ | 備考 |
+| --- | ---: | ---: | --- |
+| `IF-HOGE-FUGA-001` | 10秒 | 1回 | 失敗時は送信待ちキューへ再投入 |
+| `IF-FUGA-HOGE-002` | 15秒 | フーガ社側最大2回 | Hoge社は `status_seq` で重複排除 |
 
 ## 6. レート制御
 
-| 利用者 | API | 制御値 |
-| --- | --- | --- |
-| フーガ社 | 出荷依頼受付API | 1分あたり120件 |
-| フーガ社 | 状態照会API | 1分あたり300件 |
+| IF | 上限 |
+| --- | --- |
+| `IF-HOGE-FUGA-001` | 1分あたり120件 |
+| `IF-FUGA-HOGE-002` | 1分あたり300件 |
 
-## 7. 監視・運用
+## 7. 監視
 
 | 観点 | 内容 |
 | --- | --- |
-| 疎通監視 | VPNトンネル状態、FQDN解決、TLSハンドシェイク |
-| API監視 | 応答時間、4xx率、5xx率 |
-| 利用者別監視 | APIキー別の呼出件数、失敗件数 |
-| 追跡 | `X-Trace-Id` をアクセスログとアプリログに出力 |
+| 疎通監視 | VPNトンネル状態、TLSハンドシェイク |
+| API監視 | 4xx/5xx、レスポンスタイム |
+| 業務監視 | Fuga送信待ち件数、結果通知未着件数 |
+| ログ追跡 | `X-Trace-Id`、`shipment_request_id`、`fuga_shipment_id` |
 
-## 8. 責任分界
+## 8. 補足
 
-| 領域 | Hoge社 | フーガ社 |
-| --- | --- | --- |
-| API提供 | 実施 | - |
-| APIキー管理 | 実施 | 利用 |
-| クライアント再送制御 | - | 実施 |
-| 接続元IP管理 | 受入設定 | 実施 |
-
-## 9. 補足
-
-- 状態照会API自体は共有エンドポイントだが、本書ではフーガ社向けの接続条件のみを扱う
-- リクエスト項目やエラー応答は [連携APIアプリ設計書](/C:/Users/yaku_/Documents/training-project-01/docs/対外連携/フーガ社/連携APIアプリ設計書.md) を参照する
+- フーガ社は注文元ではなく配送委託先である
+- Hoge社の直受注登録APIや状態照会APIの利用者としては扱わない
+- 状態照会系の共有APIは本資料の対象外とする

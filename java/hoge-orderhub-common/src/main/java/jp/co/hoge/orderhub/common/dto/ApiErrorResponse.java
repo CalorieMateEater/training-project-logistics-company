@@ -7,8 +7,4 @@ package jp.co.hoge.orderhub.common.dto;
  * @param message エラーメッセージ
  * @author Takuya Yamamoto
  */
-public record ApiErrorResponse(
-        String code,
-        String message
-) {
-}
+public record ApiErrorResponse(String code, String message) {}

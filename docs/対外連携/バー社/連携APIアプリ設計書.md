@@ -57,9 +57,9 @@
 
 ```json
 {
-  "order_id": "O202606080001",
+  "order_id": "O20260620142015A1B2C3",
   "partner_order_id": "FO202606080001",
-  "shipment_request_id": "SR202606080001",
+  "shipment_request_id": "SHP-20260620142015-A1B2C3",
   "order_source_code": "FOO",
   "shipping_priority_class": "PRIORITY",
   "partner_priority_level": 8,
@@ -99,7 +99,7 @@
 | 注文ID | order_id | string | 必須 | Hoge社内注文ID |
 | 提携先注文ID | partner_order_id | string | 必須 | Foo社側注文ID |
 | 出荷依頼ID | shipment_request_id | string | 必須 | Hoge社側の配送依頼単位ID |
-| 注文元コード | order_source_code | string | 必須 | `FOO`, `FUGA` |
+| 注文元コード | order_source_code | string | 必須 | `FOO`, `HOGE` |
 | 優先配送区分 | shipping_priority_class | string | 必須 | `NORMAL`, `PRIORITY` |
 | 提携先優先度 | partner_priority_level | number | 任意 | Foo社優先度。非優先時は `0` |
 | 配送種別 | delivery_type | string | 必須 | `NORMAL`, `EXPRESS` |
@@ -120,9 +120,9 @@
 
 | 観点 | 条件 | エラー時の扱い |
 | --- | --- | --- |
-| 注文元コード | `FOO`, `FUGA` のいずれか | 422 |
+| 注文元コード | `FOO`, `HOGE` のいずれか | 422 |
 | 優先配送区分 | `NORMAL`, `PRIORITY` のいずれか | 422 |
-| 優先配送区分と注文元 | `order_source_code=FUGA` の場合 `shipping_priority_class=PRIORITY` は不可 | 422 |
+| 優先配送区分と注文元 | `order_source_code=HOGE` の場合 `shipping_priority_class=PRIORITY` は不可 | 422 |
 | 提携先優先度 | `shipping_priority_class=PRIORITY` の場合 `partner_priority_level` は 5〜9 必須 | 422 |
 | 配送種別 | `NORMAL`, `EXPRESS` のいずれか | 422 |
 | サービスレベル組合せ | `EXPRESS` のとき `SAME_DAY` または `NEXT_DAY` のみ | 422 |
@@ -156,7 +156,7 @@
 
 - Hoge社は提携先から受け取った注文元と優先度を保持する。
 - Hoge社自身は配送資材引当や配送順制御の詳細ロジックを持たず、Bar社向けには `shipping_priority_class` のみを編集して送信する。
-- Foo注文で `shipping_priority_class=PRIORITY` の場合、Bar社はFuga注文より先に処理される可能性がある。
+- Foo注文で `shipping_priority_class=PRIORITY` の場合、Bar社は通常配送案件より優先して処理する可能性がある。
 
 ### 3.9 レスポンス例
 
@@ -165,7 +165,7 @@
 ```json
 {
   "bar_shipment_id": "BARS202606080001",
-  "shipment_request_id": "SR202606080001",
+  "shipment_request_id": "SHP-20260620142015-A1B2C3",
   "acceptance_status": "ACCEPTED",
   "accepted_at": "2026-06-08T02:00:03",
   "duplicate": false
@@ -177,7 +177,7 @@
 ```json
 {
   "bar_shipment_id": "BARS202606080001",
-  "shipment_request_id": "SR202606080001",
+  "shipment_request_id": "SHP-20260620142015-A1B2C3",
   "acceptance_status": "ACCEPTED",
   "accepted_at": "2026-06-08T02:00:03",
   "duplicate": true
@@ -208,7 +208,7 @@
 ```json
 {
   "bar_shipment_id": "BARS202606080001",
-  "order_id": "O202606080001",
+  "order_id": "O20260620142015A1B2C3",
   "partner_order_id": "FO202606080001",
   "status_seq": 2,
   "delivery_status": "PREPARING",
@@ -255,7 +255,7 @@
 - 同一 `bar_shipment_id` で `status_seq` が重複した場合は再送として扱う
 - より小さい `status_seq` が後着した場合は旧イベントとして無視する
 - `reason_code` が存在する場合、Hoge社では配送状態だけでなく調査理由として保持する
-- `reason_category` は Foo社・Fuga社・Qux社向け表示制御用に保持する
+- `reason_category` は Foo社・Qux社向け表示制御および Hoge社内運用確認用に保持する
 - `address_corrected=true` の場合、Hoge社は表示用状態名を `住所補正対応中` へ正規化する
 
 ## 5. エラー応答設計

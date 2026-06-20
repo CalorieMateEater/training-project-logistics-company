@@ -8,5 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
  *
  * @author Takuya Yamamoto
  */
-public interface DeliveryStatusCurrentRepository extends JpaRepository<DeliveryStatusCurrentEntity, String> {
-}
+public interface DeliveryStatusCurrentRepository
+    extends JpaRepository<DeliveryStatusCurrentEntity, String> {}

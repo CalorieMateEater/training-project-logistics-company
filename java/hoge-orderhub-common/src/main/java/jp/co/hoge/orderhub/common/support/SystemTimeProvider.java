@@ -13,16 +13,16 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class SystemTimeProvider implements TimeProvider {
-    /** システムクロック。 */
-    private final Clock clock;
+  /** システムクロック。 */
+  private final Clock clock;
 
-    /**
-     * 現在日時を返す。
-     *
-     * @return 現在日時
-     */
-    @Override
-    public LocalDateTime now() {
-        return LocalDateTime.now(clock);
-    }
+  /**
+   * 現在日時を返す。
+   *
+   * @return 現在日時
+   */
+  @Override
+  public LocalDateTime now() {
+    return LocalDateTime.now(clock);
+  }
 }

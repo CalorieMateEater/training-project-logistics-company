@@ -10,12 +10,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication
 public class CustomerRegistryApplication {
-    /**
-     * アプリケーションを起動する。
-     *
-     * @param args 起動引数
-     */
-    public static void main(String[] args) {
-        SpringApplication.run(CustomerRegistryApplication.class, args);
-    }
+  /**
+   * アプリケーションを起動する。
+   *
+   * @param args 起動引数
+   */
+  public static void main(String[] args) {
+    SpringApplication.run(CustomerRegistryApplication.class, args);
+  }
 }

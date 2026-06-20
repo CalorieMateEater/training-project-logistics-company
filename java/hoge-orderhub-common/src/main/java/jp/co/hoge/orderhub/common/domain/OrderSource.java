@@ -6,6 +6,6 @@ package jp.co.hoge.orderhub.common.domain;
  * @author Takuya Yamamoto
  */
 public enum OrderSource {
-    FOO,
-    FUGA
+  FOO,
+  HOGE
 }

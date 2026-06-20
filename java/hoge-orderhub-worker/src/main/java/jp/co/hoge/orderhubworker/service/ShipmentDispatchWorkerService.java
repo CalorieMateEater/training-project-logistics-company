@@ -6,6 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import jp.co.hoge.orderhub.common.domain.CarrierCode;
 import jp.co.hoge.orderhub.common.domain.DeliveryStatusCode;
 import jp.co.hoge.orderhub.common.domain.InterfaceDirection;
 import jp.co.hoge.orderhub.common.domain.InterfaceStatus;
@@ -41,8 +42,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 配送会社向け出荷依頼を実行する Worker サービス。
- * 関連処理設計書ID: PDS-003
+ * 配送会社向け出荷依頼を実行する Worker サービス。 関連処理機能ID: PGD-002
  *
  * @author Takuya Yamamoto
  */
@@ -50,220 +50,261 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @RequiredArgsConstructor
 public class ShipmentDispatchWorkerService {
-    /** 出荷依頼済みを示す表示名。 */
-    private static final String SHIPMENT_REQUESTED_DISPLAY_NAME = "出荷依頼受付";
-    /** 再送待機時間。 */
-    private static final long RETRY_DELAY_MINUTES = 5L;
+  /** 出荷依頼済みを示す表示名。 */
+  private static final String SHIPMENT_REQUESTED_DISPLAY_NAME = "出荷依頼受付";
 
-    /** 出荷依頼リポジトリ。 */
-    private final ShipmentRequestRepository shipmentRequestRepository;
-    /** 注文ヘッダリポジトリ。 */
-    private final OrderHeaderRepository orderHeaderRepository;
-    /** 注文明細リポジトリ。 */
-    private final OrderLineRepository orderLineRepository;
-    /** Bar社冪等履歴リポジトリ。 */
-    private final BarIdempotencyHistoryRepository barIdempotencyHistoryRepository;
-    /** 通知履歴リポジトリ。 */
-    private final NotificationHistoryRepository notificationHistoryRepository;
-    /** Bar社配送 API クライアント。 */
-    private final MockBarDeliveryClient mockBarDeliveryClient;
-    /** インターフェース履歴記録サービス。 */
-    private final InterfaceHistoryService interfaceHistoryService;
-    /** 配送会社営業時間判定サービス。 */
-    private final BusinessHoursService businessHoursService;
-    /** ID 採番サービス。 */
-    private final IdFactory idFactory;
-    /** 現在時刻提供サービス。 */
-    private final TimeProvider timeProvider;
-    /** 出荷依頼ペイロードマッパー。 */
-    private final ShipmentDispatchMapper shipmentDispatchMapper;
-    /** 通知履歴エンティティマッパー。 */
-    private final NotificationHistoryEntityMapper notificationHistoryEntityMapper;
+  /** 再送待機時間。 */
+  private static final long RETRY_DELAY_MINUTES = 5L;
 
-    /**
-     * スケジュール起動で配送依頼処理を実行する。
-     */
-    @Scheduled(fixedDelayString = "${hoge.worker.dispatch-delay-ms:30000}")
-    public void scheduledDispatch() {
-        log.info("APP_BATCH_START function=shipmentDispatch");
-        dispatchPendingShipments();
-    }
+  /** 出荷依頼リポジトリ。 */
+  private final ShipmentRequestRepository shipmentRequestRepository;
 
-    /**
-     * 送信対象の出荷依頼を Bar社へ配送依頼する。
-     *
-     * @return 配送依頼件数
-     */
-    @Transactional
-    public int dispatchPendingShipments() {
-        LocalDateTime now = timeProvider.now();
-        List<ShipmentRequestEntity> targets = shipmentRequestRepository
-                .findByShipmentRequestStatusInAndNextRequestAfterLessThanEqualOrderByNextRequestAfterAsc(
-                        List.of(ShipmentRequestStatus.PENDING, ShipmentRequestStatus.WAITING_BUSINESS_HOURS),
-                        now
-                );
+  /** 注文ヘッダリポジトリ。 */
+  private final OrderHeaderRepository orderHeaderRepository;
 
-        int dispatched = 0;
-        for (ShipmentRequestEntity shipmentRequest : targets) {
-            OrderHeaderEntity order = orderHeaderRepository.findById(shipmentRequest.getOrderId()).orElseThrow();
-            try (var scope = MdcUtils.withEntries(Map.of(
-                    "orderId", order.getOrderId(),
-                    "requestKey", shipmentRequest.getShipmentRequestId()
-            ))) {
-                log.info("APP_BATCH_RECORD_START function=shipmentDispatch orderId={} shipmentRequestId={}",
-                        order.getOrderId(), shipmentRequest.getShipmentRequestId());
+  /** 注文明細リポジトリ。 */
+  private final OrderLineRepository orderLineRepository;
 
-                if (!businessHoursService.isBarBusinessHours(now)) {
-                    if (order.getOrderStatus() == OrderStatus.WAITING_SHIPPING_RELEASE
-                            && order.getShippingReleaseAt() != null
-                            && !order.getShippingReleaseAt().isAfter(now)) {
-                        order.setOrderStatus(OrderStatus.WAITING_BAR_REQUEST);
-                        order.setShipmentStatus(OrderStatus.WAITING_BAR_REQUEST);
-                        order.setUpdatedAt(now);
-                        orderHeaderRepository.save(order);
-                    }
-                    shipmentRequest.setShipmentRequestStatus(ShipmentRequestStatus.WAITING_BUSINESS_HOURS);
-                    shipmentRequest.setNextRequestAfter(businessHoursService.nextBarBusinessTime(now));
-                    shipmentRequestRepository.save(shipmentRequest);
-                    log.info("APP_BATCH_RECORD_WAIT function=shipmentDispatch reason=outsideBusinessHours nextRequestAfter={}",
-                            shipmentRequest.getNextRequestAfter());
-                    continue;
-                }
+  /** Bar社冪等履歴リポジトリ。 */
+  private final BarIdempotencyHistoryRepository barIdempotencyHistoryRepository;
 
-                List<OrderLineEntity> lines =
-                        orderLineRepository.findByOrderIdOrderByOrderLineNo(order.getOrderId());
-                String idempotencyKey = idFactory.idempotencyKey(shipmentRequest.getShipmentRequestId());
-                BarShipmentRequestPayload payload = shipmentDispatchMapper.toBarShipmentRequestPayload(
-                        new ShipmentDispatchContext(
-                                order,
-                                shipmentRequest,
-                                lines,
-                                now.toLocalDate(),
-                                now.toLocalDate().plusDays(1))
-                );
+  /** 通知履歴リポジトリ。 */
+  private final NotificationHistoryRepository notificationHistoryRepository;
 
-                shipmentRequest.setShipmentRequestStatus(ShipmentRequestStatus.REQUESTING);
-                shipmentRequestRepository.save(shipmentRequest);
+  /** Bar社配送 API クライアント。 */
+  private final MockBarDeliveryClient mockBarDeliveryClient;
 
-                BarShipmentAcceptedResponse response;
-                try {
-                    response = mockBarDeliveryClient.requestShipment(idempotencyKey, payload);
-                } catch (RuntimeException exception) {
-                    shipmentRequest.setShipmentRequestStatus(ShipmentRequestStatus.PENDING);
-                    shipmentRequest.setNextRequestAfter(now.plusMinutes(RETRY_DELAY_MINUTES));
-                    shipmentRequestRepository.save(shipmentRequest);
-                    interfaceHistoryService.record(
-                            "IF-HOGE-BAR-001",
-                            InterfaceDirection.OUTBOUND,
-                            InterfaceStatus.FAILED,
-                            shipmentRequest.getShipmentRequestId(),
-                            "500",
-                            "bar request failed: " + exception.getMessage());
-                    log.error("MONITORING_BATCH_ERROR function=shipmentDispatch shipmentRequestId={} message={}",
-                            shipmentRequest.getShipmentRequestId(), exception.getMessage(), exception);
-                    continue;
-                }
+  /** Fuga社配送 API クライアント。 */
+  private final MockFugaDeliveryClient mockFugaDeliveryClient;
 
-                BarIdempotencyHistoryEntity idempotency = shipmentDispatchMapper.toBarIdempotencyHistoryEntity(
-                        new BarIdempotencyContext(
-                                idempotencyKey,
-                                shipmentRequest.getShipmentRequestId(),
-                                hash(payload.toString()),
-                                response.barShipmentId(),
-                                now
-                        )
-                );
-                barIdempotencyHistoryRepository.save(idempotency);
+  /** インターフェース履歴記録サービス。 */
+  private final InterfaceHistoryService interfaceHistoryService;
 
-                shipmentRequest.setShipmentRequestStatus(ShipmentRequestStatus.ACCEPTED);
-                shipmentRequest.setRequestedAt(now);
-                shipmentRequest.setBarAcceptedAt(now);
-                shipmentRequest.setBarAcceptNo(response.barShipmentId());
-                shipmentRequestRepository.save(shipmentRequest);
+  /** 配送会社営業時間判定サービス。 */
+  private final BusinessHoursService businessHoursService;
 
-                order.setOrderStatus(OrderStatus.BAR_ACCEPTED);
-                order.setShipmentStatus(OrderStatus.BAR_ACCEPTED);
-                order.setUpdatedAt(now);
-                orderHeaderRepository.save(order);
+  /** ID 採番サービス。 */
+  private final IdFactory idFactory;
 
-                interfaceHistoryService.record(
-                        "IF-HOGE-BAR-001",
-                        InterfaceDirection.OUTBOUND,
-                        InterfaceStatus.SUCCESS,
-                        shipmentRequest.getShipmentRequestId(),
-                        "201",
-                        "bar accepted");
+  /** 現在時刻提供サービス。 */
+  private final TimeProvider timeProvider;
 
-                createNotification(
-                        order,
-                        NotificationType.BAZ_BILLING,
-                        "billing-plan-queue",
-                        "PROVISIONAL_BILLING",
-                        DeliveryStatusCode.ACCEPTED.name(),
-                        null,
-                        null,
-                        "baz-billing:" + order.getOrderId() + ":provisional"
-                );
-                createNotification(
-                        order,
-                        NotificationType.QUX_ORDER,
-                        "order-notice-queue.fifo",
-                        "SHIPMENT_REQUESTED",
-                        OrderStatus.BAR_ACCEPTED.name(),
-                        SHIPMENT_REQUESTED_DISPLAY_NAME,
-                        null,
-                        "qux-shipment:" + order.getOrderId()
-                );
-                log.info("APP_BATCH_RECORD_FINISH function=shipmentDispatch orderId={} shipmentRequestId={} result=accepted",
-                        order.getOrderId(), shipmentRequest.getShipmentRequestId());
-                dispatched++;
-            }
+  /** 出荷依頼ペイロードマッパー。 */
+  private final ShipmentDispatchMapper shipmentDispatchMapper;
+
+  /** 通知履歴エンティティマッパー。 */
+  private final NotificationHistoryEntityMapper notificationHistoryEntityMapper;
+
+  /** スケジュール起動で配送依頼処理を実行する。 */
+  @Scheduled(fixedDelayString = "${hoge.worker.dispatch-delay-ms:30000}")
+  public void scheduledDispatch() {
+    log.info("APP_BATCH_START function=shipmentDispatch");
+    dispatchPendingShipments();
+  }
+
+  /**
+   * 送信対象の出荷依頼を Bar社へ配送依頼する。
+   *
+   * @return 配送依頼件数
+   */
+  @Transactional
+  public int dispatchPendingShipments() {
+    LocalDateTime now = timeProvider.now();
+    List<ShipmentRequestEntity> targets =
+        shipmentRequestRepository
+            .findByShipmentRequestStatusInAndNextRequestAfterLessThanEqualOrderByNextRequestAfterAsc(
+                List.of(
+                    ShipmentRequestStatus.PENDING, ShipmentRequestStatus.WAITING_BUSINESS_HOURS),
+                now);
+
+    int dispatched = 0;
+    for (ShipmentRequestEntity shipmentRequest : targets) {
+      OrderHeaderEntity order =
+          orderHeaderRepository.findById(shipmentRequest.getOrderId()).orElseThrow();
+      try (var scope =
+          MdcUtils.withEntries(
+              Map.of(
+                  "orderId", order.getOrderId(),
+                  "requestKey", shipmentRequest.getShipmentRequestId()))) {
+        log.info(
+            "APP_BATCH_RECORD_START function=shipmentDispatch orderId={} shipmentRequestId={}",
+            order.getOrderId(),
+            shipmentRequest.getShipmentRequestId());
+
+        CarrierCode carrierCode = resolveCarrierCode(shipmentRequest, order);
+        boolean barCarrier = carrierCode == CarrierCode.BAR;
+        String outboundIfId = barCarrier ? "IF-HOGE-BAR-001" : "IF-HOGE-FUGA-001";
+        String acceptedCompanyCode = barCarrier ? "BAR" : "FUGA";
+
+        if (barCarrier && !businessHoursService.isBarBusinessHours(now)) {
+          if (order.getOrderStatus() == OrderStatus.WAITING_SHIPPING_RELEASE
+              && order.getShippingReleaseAt() != null
+              && !order.getShippingReleaseAt().isAfter(now)) {
+            order.setOrderStatus(OrderStatus.WAITING_BAR_REQUEST);
+            order.setShipmentStatus(OrderStatus.WAITING_BAR_REQUEST);
+            order.setUpdatedAt(now);
+            orderHeaderRepository.save(order);
+          }
+          shipmentRequest.setShipmentRequestStatus(ShipmentRequestStatus.WAITING_BUSINESS_HOURS);
+          shipmentRequest.setNextRequestAfter(businessHoursService.nextBarBusinessTime(now));
+          shipmentRequestRepository.save(shipmentRequest);
+          log.info(
+              "APP_BATCH_RECORD_WAIT function=shipmentDispatch reason=outsideBusinessHours nextRequestAfter={}",
+              shipmentRequest.getNextRequestAfter());
+          continue;
         }
 
-        return dispatched;
-    }
+        List<OrderLineEntity> lines =
+            orderLineRepository.findByOrderIdOrderByOrderLineNo(order.getOrderId());
+        String idempotencyKey = idFactory.idempotencyKey(shipmentRequest.getShipmentRequestId());
+        BarShipmentRequestPayload payload =
+            shipmentDispatchMapper.toBarShipmentRequestPayload(
+                new ShipmentDispatchContext(
+                    order,
+                    shipmentRequest,
+                    lines,
+                    now.toLocalDate(),
+                    now.toLocalDate().plusDays(1)));
 
-    private void createNotification(
-            OrderHeaderEntity order,
-            NotificationType type,
-            String destination,
-            String eventType,
-            String payloadSummary,
-            String displayStatusName,
-            String referenceNotificationId,
-            String notificationKey
-    ) {
-        LocalDateTime now = timeProvider.now();
-        NotificationHistoryEntity notification = notificationHistoryEntityMapper.toEntity(
-                new NotificationHistoryRecord(
-                        idFactory.notificationId(),
-                        order.getOrderId(),
-                        type,
-                        NotificationStatus.SENT,
-                        payloadSummary,
-                        notificationKey,
-                        eventType,
-                        referenceNotificationId,
-                        displayStatusName,
-                        destination,
-                        now,
-                        now
-                )
-        );
-        notificationHistoryRepository.save(notification);
-    }
+        shipmentRequest.setShipmentRequestStatus(ShipmentRequestStatus.REQUESTING);
+        shipmentRequestRepository.save(shipmentRequest);
 
-    private String hash(String source) {
+        BarShipmentAcceptedResponse response;
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(source.getBytes(StandardCharsets.UTF_8));
-            StringBuilder builder = new StringBuilder();
-            for (byte value : hash) {
-                builder.append(String.format("%02x", value));
-            }
-            return builder.toString();
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException(exception);
+          response =
+              barCarrier
+                  ? mockBarDeliveryClient.requestShipment(idempotencyKey, payload)
+                  : mockFugaDeliveryClient.requestShipment(idempotencyKey, payload);
+        } catch (RuntimeException exception) {
+          shipmentRequest.setShipmentRequestStatus(ShipmentRequestStatus.PENDING);
+          shipmentRequest.setNextRequestAfter(
+              barCarrier ? now.plusMinutes(RETRY_DELAY_MINUTES) : now.plusMinutes(1L));
+          shipmentRequestRepository.save(shipmentRequest);
+          interfaceHistoryService.record(
+              outboundIfId,
+              InterfaceDirection.OUTBOUND,
+              InterfaceStatus.FAILED,
+              shipmentRequest.getShipmentRequestId(),
+              "500",
+              acceptedCompanyCode.toLowerCase() + " request failed: " + exception.getMessage());
+          log.error(
+              "MONITORING_BATCH_ERROR function=shipmentDispatch shipmentRequestId={} carrierCode={} message={}",
+              shipmentRequest.getShipmentRequestId(),
+              acceptedCompanyCode,
+              exception.getMessage(),
+              exception);
+          continue;
         }
+
+        BarIdempotencyHistoryEntity idempotency =
+            shipmentDispatchMapper.toBarIdempotencyHistoryEntity(
+                new BarIdempotencyContext(
+                    idempotencyKey,
+                    shipmentRequest.getShipmentRequestId(),
+                    hash(payload.toString()),
+                    response.barShipmentId(),
+                    now));
+        barIdempotencyHistoryRepository.save(idempotency);
+
+        shipmentRequest.setShipmentRequestStatus(ShipmentRequestStatus.ACCEPTED);
+        shipmentRequest.setRequestedAt(now);
+        shipmentRequest.setBarAcceptedAt(now);
+        shipmentRequest.setBarAcceptNo(response.barShipmentId());
+        shipmentRequestRepository.save(shipmentRequest);
+
+        order.setOrderStatus(OrderStatus.BAR_ACCEPTED);
+        order.setShipmentStatus(OrderStatus.BAR_ACCEPTED);
+        order.setUpdatedAt(now);
+        orderHeaderRepository.save(order);
+
+        interfaceHistoryService.record(
+            outboundIfId,
+            InterfaceDirection.OUTBOUND,
+            InterfaceStatus.SUCCESS,
+            shipmentRequest.getShipmentRequestId(),
+            "201",
+            acceptedCompanyCode.toLowerCase() + " accepted");
+
+        createNotification(
+            order,
+            NotificationType.BAZ_BILLING,
+            "billing-plan-queue",
+            "PROVISIONAL_BILLING",
+            DeliveryStatusCode.ACCEPTED.name(),
+            null,
+            null,
+            "baz-billing:" + order.getOrderId() + ":provisional");
+        createNotification(
+            order,
+            NotificationType.QUX_ORDER,
+            "order-notice-queue.fifo",
+            "SHIPMENT_REQUESTED",
+            OrderStatus.BAR_ACCEPTED.name(),
+            SHIPMENT_REQUESTED_DISPLAY_NAME,
+            null,
+            "qux-shipment:" + order.getOrderId());
+        log.info(
+            "APP_BATCH_RECORD_FINISH function=shipmentDispatch orderId={} shipmentRequestId={} carrierCode={} result=accepted",
+            order.getOrderId(),
+            shipmentRequest.getShipmentRequestId(),
+            acceptedCompanyCode);
+        dispatched++;
+      }
     }
+
+    return dispatched;
+  }
+
+  private CarrierCode resolveCarrierCode(
+      ShipmentRequestEntity shipmentRequest, OrderHeaderEntity order) {
+    if (shipmentRequest.getCarrierCode() != null) {
+      return shipmentRequest.getCarrierCode();
+    }
+    if (order.getCarrierCode() != null) {
+      return order.getCarrierCode();
+    }
+    return CarrierCode.BAR;
+  }
+
+  private void createNotification(
+      OrderHeaderEntity order,
+      NotificationType type,
+      String destination,
+      String eventType,
+      String payloadSummary,
+      String displayStatusName,
+      String referenceNotificationId,
+      String notificationKey) {
+    LocalDateTime now = timeProvider.now();
+    NotificationHistoryEntity notification =
+        notificationHistoryEntityMapper.toEntity(
+            new NotificationHistoryRecord(
+                idFactory.notificationId(),
+                order.getOrderId(),
+                type,
+                NotificationStatus.SENT,
+                payloadSummary,
+                notificationKey,
+                eventType,
+                referenceNotificationId,
+                displayStatusName,
+                destination,
+                now,
+                now));
+    notificationHistoryRepository.save(notification);
+  }
+
+  private String hash(String source) {
+    try {
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      byte[] hash = digest.digest(source.getBytes(StandardCharsets.UTF_8));
+      StringBuilder builder = new StringBuilder();
+      for (byte value : hash) {
+        builder.append(String.format("%02x", value));
+      }
+      return builder.toString();
+    } catch (NoSuchAlgorithmException exception) {
+      throw new IllegalStateException(exception);
+    }
+  }
 }

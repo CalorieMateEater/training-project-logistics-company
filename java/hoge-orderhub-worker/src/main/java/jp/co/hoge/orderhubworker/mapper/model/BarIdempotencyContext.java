@@ -13,10 +13,8 @@ import java.time.LocalDateTime;
  * @author Takuya Yamamoto
  */
 public record BarIdempotencyContext(
-        String idempotencyKey,
-        String shipmentRequestId,
-        String requestHash,
-        String barShipmentId,
-        LocalDateTime createdAt
-) {
-}
+    String idempotencyKey,
+    String shipmentRequestId,
+    String requestHash,
+    String barShipmentId,
+    LocalDateTime createdAt) {}

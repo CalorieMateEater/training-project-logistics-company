@@ -24,8 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Foo社向け受付通知ファイルを出力する Worker サービス。
- * 関連処理設計書ID: PDS-002
+ * Foo社向け受付通知ファイルを出力する Worker サービス。 関連処理機能ID: PGD-001
  *
  * @author Takuya Yamamoto
  */
@@ -33,81 +32,88 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @RequiredArgsConstructor
 public class FooAckNotificationWorkerService {
-    /** 出力ファイル名用タイムスタンプ。 */
-    private static final DateTimeFormatter FILE_TS = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
+  /** 出力ファイル名用タイムスタンプ。 */
+  private static final DateTimeFormatter FILE_TS = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
 
-    /** 通知履歴リポジトリ。 */
-    private final NotificationHistoryRepository notificationHistoryRepository;
-    /** 注文ヘッダリポジトリ。 */
-    private final OrderHeaderRepository orderHeaderRepository;
-    /** インターフェース履歴記録サービス。 */
-    private final InterfaceHistoryService interfaceHistoryService;
-    /** 現在時刻提供サービス。 */
-    private final TimeProvider timeProvider;
-    /** Worker ファイル出力設定。 */
-    private final WorkerFileProperties workerFileProperties;
+  /** 通知履歴リポジトリ。 */
+  private final NotificationHistoryRepository notificationHistoryRepository;
 
-    /**
-     * スケジュール起動で Foo社向け受付通知を実行する。
-     */
-    @Scheduled(fixedDelayString = "${hoge.worker.foo-ack-delay-ms:45000}")
-    public void scheduledPublish() {
-        log.info("APP_BATCH_START function=fooAckNotification");
-        publishPendingAckNotifications();
+  /** 注文ヘッダリポジトリ。 */
+  private final OrderHeaderRepository orderHeaderRepository;
+
+  /** インターフェース履歴記録サービス。 */
+  private final InterfaceHistoryService interfaceHistoryService;
+
+  /** 現在時刻提供サービス。 */
+  private final TimeProvider timeProvider;
+
+  /** Worker ファイル出力設定。 */
+  private final WorkerFileProperties workerFileProperties;
+
+  /** スケジュール起動で Foo社向け受付通知を実行する。 */
+  @Scheduled(fixedDelayString = "${hoge.worker.foo-ack-delay-ms:45000}")
+  public void scheduledPublish() {
+    log.info("APP_BATCH_START function=fooAckNotification");
+    publishPendingAckNotifications();
+  }
+
+  /**
+   * 未通知の Foo社向け受付通知をファイル出力する。
+   *
+   * @return 通知件数
+   */
+  @Transactional
+  public int publishPendingAckNotifications() {
+    List<NotificationHistoryEntity> targets =
+        notificationHistoryRepository
+            .findByNotificationTypeAndNotificationStatusOrderByCreatedAtAsc(
+                NotificationType.FOO_ACK, NotificationStatus.PENDING);
+
+    int published = 0;
+    for (NotificationHistoryEntity notification : targets) {
+      OrderHeaderEntity order =
+          orderHeaderRepository.findById(notification.getOrderId()).orElseThrow();
+      try (var scope = MdcUtils.withOrder(order.getOrderId())) {
+        log.info(
+            "APP_BATCH_RECORD_START function=fooAckNotification orderId={}", order.getOrderId());
+        writeAckFile(order.getPartnerOrderId(), notification.getPayloadSummary());
+        notification.setNotificationStatus(NotificationStatus.SENT);
+        notification.setUpdatedAt(timeProvider.now());
+        notificationHistoryRepository.save(notification);
+        interfaceHistoryService.record(
+            "IF-HOGE-FOO-001",
+            InterfaceDirection.OUTBOUND,
+            InterfaceStatus.SUCCESS,
+            order.getPartnerOrderId(),
+            "200",
+            "foo ack notified");
+        log.info(
+            "APP_BATCH_RECORD_FINISH function=fooAckNotification orderId={}", order.getOrderId());
+      }
+      published++;
     }
 
-    /**
-     * 未通知の Foo社向け受付通知をファイル出力する。
-     *
-     * @return 通知件数
-     */
-    @Transactional
-    public int publishPendingAckNotifications() {
-        List<NotificationHistoryEntity> targets = notificationHistoryRepository
-                .findByNotificationTypeAndNotificationStatusOrderByCreatedAtAsc(
-                        NotificationType.FOO_ACK,
-                        NotificationStatus.PENDING
-                );
+    return published;
+  }
 
-        int published = 0;
-        for (NotificationHistoryEntity notification : targets) {
-            OrderHeaderEntity order = orderHeaderRepository.findById(notification.getOrderId()).orElseThrow();
-            try (var scope = MdcUtils.withOrder(order.getOrderId())) {
-                log.info("APP_BATCH_RECORD_START function=fooAckNotification orderId={}", order.getOrderId());
-                writeAckFile(order.getPartnerOrderId(), notification.getPayloadSummary());
-                notification.setNotificationStatus(NotificationStatus.SENT);
-                notification.setUpdatedAt(timeProvider.now());
-                notificationHistoryRepository.save(notification);
-                interfaceHistoryService.record(
-                        "IF-HOGE-FOO-001",
-                        InterfaceDirection.OUTBOUND,
-                        InterfaceStatus.SUCCESS,
-                        order.getPartnerOrderId(),
-                        "200",
-                        "foo ack notified");
-                log.info("APP_BATCH_RECORD_FINISH function=fooAckNotification orderId={}", order.getOrderId());
-            }
-            published++;
-        }
-
-        return published;
+  private void writeAckFile(String partnerOrderId, String payloadSummary) {
+    try {
+      Path ackDir = Path.of(workerFileProperties.getFooAckDir());
+      Files.createDirectories(ackDir);
+      String[] payload = payloadSummary.split("\\|", 3);
+      String receiptStatus = payload[0];
+      String messageCode = payload[1];
+      String acceptedAt = payload[2];
+      String fileName = "FOO_ORDER_ACK_" + timeProvider.now().format(FILE_TS) + "_001.dat";
+      String line = partnerOrderId + "," + receiptStatus + "," + acceptedAt + "," + messageCode;
+      Files.writeString(
+          ackDir.resolve(fileName), line + System.lineSeparator(), StandardCharsets.UTF_8);
+    } catch (IOException exception) {
+      log.error(
+          "MONITORING_BATCH_ERROR function=fooAckNotificationWrite message={}",
+          exception.getMessage(),
+          exception);
+      throw new IllegalStateException(exception);
     }
-
-    private void writeAckFile(String partnerOrderId, String payloadSummary) {
-        try {
-            Path ackDir = Path.of(workerFileProperties.getFooAckDir());
-            Files.createDirectories(ackDir);
-            String[] payload = payloadSummary.split("\\|", 3);
-            String receiptStatus = payload[0];
-            String messageCode = payload[1];
-            String acceptedAt = payload[2];
-            String fileName = "FOO_ORDER_ACK_" + timeProvider.now().format(FILE_TS) + "_001.dat";
-            String line = partnerOrderId + "," + receiptStatus + "," + acceptedAt + "," + messageCode;
-            Files.writeString(ackDir.resolve(fileName), line + System.lineSeparator(), StandardCharsets.UTF_8);
-        } catch (IOException exception) {
-            log.error("MONITORING_BATCH_ERROR function=fooAckNotificationWrite message={}",
-                    exception.getMessage(), exception);
-            throw new IllegalStateException(exception);
-        }
-    }
+  }
 }

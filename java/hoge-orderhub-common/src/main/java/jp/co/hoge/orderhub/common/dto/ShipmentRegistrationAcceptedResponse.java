@@ -10,11 +10,9 @@ package jp.co.hoge.orderhub.common.dto;
  * @param acceptedAt 受付日時
  * @author Takuya Yamamoto
  */
-public record FugaShipmentAcceptedResponse(
-        String orderId,
-        String partnerRequestId,
-        String registrationStatus,
-        String currentStatus,
-        String acceptedAt
-) {
-}
+public record ShipmentRegistrationAcceptedResponse(
+    String orderId,
+    String partnerRequestId,
+    String registrationStatus,
+    String currentStatus,
+    String acceptedAt) {}

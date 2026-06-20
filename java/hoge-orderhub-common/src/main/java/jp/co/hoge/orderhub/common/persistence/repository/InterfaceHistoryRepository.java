@@ -8,5 +8,4 @@ import org.springframework.data.jpa.repository.JpaRepository;
  *
  * @author Takuya Yamamoto
  */
-public interface InterfaceHistoryRepository extends JpaRepository<InterfaceHistoryEntity, String> {
-}
+public interface InterfaceHistoryRepository extends JpaRepository<InterfaceHistoryEntity, String> {}

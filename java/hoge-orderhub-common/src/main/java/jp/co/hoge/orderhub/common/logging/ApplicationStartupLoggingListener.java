@@ -17,18 +17,15 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ApplicationStartupLoggingListener {
 
-    /** 実行環境情報。 */
-    private final Environment environment;
+  /** 実行環境情報。 */
+  private final Environment environment;
 
-    /**
-     * 起動済みアプリケーション名と有効プロファイルをログへ出力する。
-     */
-    @EventListener(ApplicationReadyEvent.class)
-    public void onReady() {
-        log.info(
-                "APP_STARTUP application={} profiles={}",
-                environment.getProperty("spring.application.name"),
-                String.join(",", environment.getActiveProfiles())
-        );
-    }
+  /** 起動済みアプリケーション名と有効プロファイルをログへ出力する。 */
+  @EventListener(ApplicationReadyEvent.class)
+  public void onReady() {
+    log.info(
+        "APP_STARTUP application={} profiles={}",
+        environment.getProperty("spring.application.name"),
+        String.join(",", environment.getActiveProfiles()));
+  }
 }

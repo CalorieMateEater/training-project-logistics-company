@@ -20,85 +20,106 @@ import org.mapstruct.Mapping;
  *
  * @author Takuya Yamamoto
  */
-@Mapper(config = CommonMapperConfig.class, imports = {
-        CarrierCode.class,
-        OrderSource.class,
-        NotificationStatus.class,
-        NotificationType.class
-})
+@Mapper(
+    config = CommonMapperConfig.class,
+    imports = {
+      CarrierCode.class,
+      OrderSource.class,
+      NotificationStatus.class,
+      NotificationType.class
+    })
 public interface FooOrderImportEntityMapper {
-    /**
-     * 取込情報から注文ヘッダを生成する。
-     *
-     * @param source 取込情報
-     * @return 注文ヘッダ
-     */
-    @Mapping(target = "orderSource", expression = "java(OrderSource.FOO)")
-    @Mapping(target = "shipmentStatus", source = "orderStatus")
-    @Mapping(target = "carrierCode", expression = "java(CarrierCode.BAR)")
-    @Mapping(target = "deliveryZipCode", source = "zipCode")
-    @Mapping(target = "deliveryAddress", source = "address")
-    @Mapping(target = "createdAt", source = "orderDatetime")
-    @Mapping(target = "updatedAt", source = "now")
-    OrderHeaderEntity toOrderHeader(FooOrderImportContext source);
+  /**
+   * 取込情報から注文ヘッダを生成する。
+   *
+   * @param source 取込情報
+   * @return 注文ヘッダ
+   */
+  @Mapping(target = "orderSource", expression = "java(OrderSource.FOO)")
+  @Mapping(target = "shipmentStatus", source = "orderStatus")
+  @Mapping(target = "carrierCode", source = "carrierCode")
+  @Mapping(target = "deliveryZipCode", source = "zipCode")
+  @Mapping(target = "deliveryAddress", source = "address")
+  @Mapping(target = "createdAt", source = "orderDatetime")
+  @Mapping(target = "updatedAt", source = "now")
+  OrderHeaderEntity toOrderHeader(FooOrderImportContext source);
 
-    /**
-     * 取込情報から注文明細を生成する。
-     *
-     * @param source 取込情報
-     * @return 注文明細
-     */
-    @Mapping(target = "orderLineNo", constant = "1")
-    @Mapping(target = "itemName", constant = "FooOrderedItem")
-    OrderLineEntity toOrderLine(FooOrderImportContext source);
+  /**
+   * 取込情報から注文明細を生成する。
+   *
+   * @param source 取込情報
+   * @return 注文明細
+   */
+  @Mapping(target = "orderLineNo", constant = "1")
+  @Mapping(target = "itemName", constant = "FooOrderedItem")
+  @Mapping(
+      target = "sourceWarehouseLocationCode",
+      expression =
+          "java(source.reservationResponse().results().isEmpty() ? null : source.reservationResponse().results().get(0).warehouseLocationCode())")
+  OrderLineEntity toOrderLine(FooOrderImportContext source);
 
-    /**
-     * 取込情報から顧客確認結果を生成する。
-     *
-     * @param source 取込情報
-     * @return 顧客確認結果
-     */
-    @Mapping(target = "checkStatus", source = "customerStatus.status")
-    @Mapping(target = "memberRank", source = "customerStatus.memberRank")
-    @Mapping(target = "checkedAt", source = "now")
-    CustomerCheckResultEntity toCustomerCheckResult(FooOrderImportContext source);
+  /**
+   * 取込情報から顧客確認結果を生成する。
+   *
+   * @param source 取込情報
+   * @return 顧客確認結果
+   */
+  @Mapping(target = "checkStatus", source = "customerStatus.status")
+  @Mapping(target = "memberRank", source = "customerStatus.memberRank")
+  @Mapping(target = "checkedAt", source = "now")
+  CustomerCheckResultEntity toCustomerCheckResult(FooOrderImportContext source);
 
-    /**
-     * 取込情報から在庫引当結果を生成する。
-     *
-     * @param source 取込情報
-     * @return 在庫引当結果
-     */
-    @Mapping(target = "orderLineNo", constant = "1")
-    @Mapping(target = "reservationId", source = "reservationResponse.reservationId")
-    @Mapping(target = "reservationStatus", source = "reservationResponse.status")
-    @Mapping(target = "reservedQuantity", source = "quantity")
-    StockReservationResultEntity toStockReservationResult(FooOrderImportContext source);
+  /**
+   * 取込情報から在庫引当結果を生成する。
+   *
+   * @param source 取込情報
+   * @return 在庫引当結果
+   */
+  @Mapping(target = "orderLineNo", constant = "1")
+  @Mapping(target = "reservationId", source = "reservationResponse.reservationId")
+  @Mapping(
+      target = "reservationStatus",
+      expression =
+          "java(source.reservationResponse().results().isEmpty() ? source.reservationResponse().status() : source.reservationResponse().results().get(0).reservationStatus())")
+  @Mapping(
+      target = "reservedQuantity",
+      expression =
+          "java(source.reservationResponse().results().isEmpty() ? source.quantity() : source.reservationResponse().results().get(0).reservedQuantity())")
+  @Mapping(
+      target = "warehouseLocationCode",
+      expression =
+          "java(source.reservationResponse().results().isEmpty() ? null : source.reservationResponse().results().get(0).warehouseLocationCode())")
+  @Mapping(target = "releasedQuantity", constant = "0")
+  @Mapping(target = "shippedConfirmedQuantity", constant = "0")
+  StockReservationResultEntity toStockReservationResult(FooOrderImportContext source);
 
-    /**
-     * 取込情報から出荷依頼を生成する。
-     *
-     * @param source 取込情報
-     * @return 出荷依頼
-     */
-    @Mapping(target = "carrierCode", expression = "java(CarrierCode.BAR)")
-    @Mapping(target = "orderSource", expression = "java(OrderSource.FOO)")
-    @Mapping(target = "queueEnqueuedAt", source = "now")
-    ShipmentRequestEntity toShipmentRequest(FooOrderImportContext source);
+  /**
+   * 取込情報から出荷依頼を生成する。
+   *
+   * @param source 取込情報
+   * @return 出荷依頼
+   */
+  @Mapping(target = "carrierCode", source = "carrierCode")
+  @Mapping(target = "orderSource", expression = "java(OrderSource.FOO)")
+  @Mapping(target = "queueEnqueuedAt", source = "now")
+  ShipmentRequestEntity toShipmentRequest(FooOrderImportContext source);
 
-    /**
-     * 取込情報から Foo向け受付通知履歴を生成する。
-     *
-     * @param source 取込情報
-     * @return 通知履歴
-     */
-    @Mapping(target = "notificationType", expression = "java(NotificationType.FOO_ACK)")
-    @Mapping(target = "notificationStatus", expression = "java(NotificationStatus.PENDING)")
-    @Mapping(target = "eventType", constant = "ORDER_ACCEPTED")
-    @Mapping(target = "notificationKey", expression = "java(\"foo-ack:\" + source.partnerOrderId())")
-    @Mapping(target = "payloadSummary", expression = "java(source.receiptStatus() + \"|\" + source.messageCode() + \"|\" + source.now())")
-    @Mapping(target = "destination", constant = "foo-ack-file")
-    @Mapping(target = "createdAt", source = "now")
-    @Mapping(target = "updatedAt", source = "now")
-    NotificationHistoryEntity toFooAckNotification(FooOrderImportContext source);
+  /**
+   * 取込情報から Foo向け受付通知履歴を生成する。
+   *
+   * @param source 取込情報
+   * @return 通知履歴
+   */
+  @Mapping(target = "notificationType", expression = "java(NotificationType.FOO_ACK)")
+  @Mapping(target = "notificationStatus", expression = "java(NotificationStatus.PENDING)")
+  @Mapping(target = "eventType", constant = "ORDER_ACCEPTED")
+  @Mapping(target = "notificationKey", expression = "java(\"foo-ack:\" + source.partnerOrderId())")
+  @Mapping(
+      target = "payloadSummary",
+      expression =
+          "java(source.receiptStatus() + \"|\" + source.messageCode() + \"|\" + source.now())")
+  @Mapping(target = "destination", constant = "foo-ack-file")
+  @Mapping(target = "createdAt", source = "now")
+  @Mapping(target = "updatedAt", source = "now")
+  NotificationHistoryEntity toFooAckNotification(FooOrderImportContext source);
 }

@@ -19,14 +19,12 @@ import jp.co.hoge.orderhub.common.domain.InterfaceStatus;
  * @author Takuya Yamamoto
  */
 public record InterfaceHistoryRecord(
-        String interfaceHistoryId,
-        String ifId,
-        InterfaceDirection direction,
-        InterfaceStatus resultStatus,
-        String requestKey,
-        String traceId,
-        String resultCode,
-        String message,
-        LocalDateTime requestedAt
-) {
-}
+    String interfaceHistoryId,
+    String ifId,
+    InterfaceDirection direction,
+    InterfaceStatus resultStatus,
+    String requestKey,
+    String traceId,
+    String resultCode,
+    String message,
+    LocalDateTime requestedAt) {}

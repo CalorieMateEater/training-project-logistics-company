@@ -12,11 +12,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
  */
 public interface OrderLineRepository extends JpaRepository<OrderLineEntity, OrderLineId> {
 
-    /**
-     * 指定注文の明細を明細番号順に取得する。
-     *
-     * @param orderId 注文 ID
-     * @return 注文明細一覧
-     */
-    List<OrderLineEntity> findByOrderIdOrderByOrderLineNo(String orderId);
+  /**
+   * 指定注文の明細を明細番号順に取得する。
+   *
+   * @param orderId 注文 ID
+   * @return 注文明細一覧
+   */
+  List<OrderLineEntity> findByOrderIdOrderByOrderLineNo(String orderId);
 }

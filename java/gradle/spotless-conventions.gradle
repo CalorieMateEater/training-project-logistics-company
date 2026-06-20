@@ -1,0 +1,14 @@
+apply plugin: 'com.diffplug.spotless'
+
+spotless {
+    java {
+        target 'src/**/*.java'
+        importOrder 'java', 'javax', 'jakarta', 'org', 'com', 'jp'
+        removeUnusedImports()
+        googleJavaFormat('1.22.0')
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('spotlessCheck')
+}

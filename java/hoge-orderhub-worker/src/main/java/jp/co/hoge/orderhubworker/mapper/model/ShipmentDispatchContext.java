@@ -17,10 +17,8 @@ import jp.co.hoge.orderhub.common.persistence.entity.ShipmentRequestEntity;
  * @author Takuya Yamamoto
  */
 public record ShipmentDispatchContext(
-        OrderHeaderEntity orderHeader,
-        ShipmentRequestEntity shipmentRequest,
-        List<OrderLineEntity> orderLines,
-        LocalDate requestedShipDate,
-        LocalDate requestedDeliveryDate
-) {
-}
+    OrderHeaderEntity orderHeader,
+    ShipmentRequestEntity shipmentRequest,
+    List<OrderLineEntity> orderLines,
+    LocalDate requestedShipDate,
+    LocalDate requestedDeliveryDate) {}

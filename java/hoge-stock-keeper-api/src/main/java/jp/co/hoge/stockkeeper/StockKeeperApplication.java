@@ -8,14 +8,14 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  *
  * @author Takuya Yamamoto
  */
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"jp.co.hoge.stockkeeper", "jp.co.hoge.orderhub.common"})
 public class StockKeeperApplication {
-    /**
-     * アプリケーションを起動する。
-     *
-     * @param args 起動引数
-     */
-    public static void main(String[] args) {
-        SpringApplication.run(StockKeeperApplication.class, args);
-    }
+  /**
+   * アプリケーションを起動する。
+   *
+   * @param args 起動引数
+   */
+  public static void main(String[] args) {
+    SpringApplication.run(StockKeeperApplication.class, args);
+  }
 }

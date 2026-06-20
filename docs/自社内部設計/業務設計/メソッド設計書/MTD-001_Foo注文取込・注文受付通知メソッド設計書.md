@@ -6,7 +6,7 @@
 | メソッド設計書ID | `MTD-001` |
 | 対応処理機能ID | `PGD-001` |
 | 対象論理機能 | Foo注文取込・注文受付通知 |
-| 関連実装クラス | `jp.co.hoge.orderhubbatch.service.FooOrderImportService` |
+| 関連処理設計書ID | `PDS-001`, `PDS-002` |
 
 ## 2. 対象メソッド
 | メソッド | 種別 | 説明 |

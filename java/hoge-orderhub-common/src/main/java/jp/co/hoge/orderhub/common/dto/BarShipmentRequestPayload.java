@@ -28,41 +28,40 @@ import java.util.List;
  * @author Takuya Yamamoto
  */
 public record BarShipmentRequestPayload(
-        String orderId,
-        String partnerOrderId,
-        String shipmentRequestId,
-        String orderSourceCode,
-        String shippingPriorityClass,
-        int partnerPriorityLevel,
-        String deliveryType,
-        String serviceLevel,
-        String temperatureZone,
-        int packageCount,
-        int cashOnDeliveryAmount,
-        LocalDate requestedShipDate,
-        LocalDate requestedDeliveryDate,
-        String deliveryZipCode,
-        String deliveryAddress,
-        String deliveryName,
-        String deliveryPhone,
-        String specialInstruction,
-        List<Item> items
-) {
+    String orderId,
+    String partnerOrderId,
+    String shipmentRequestId,
+    String orderSourceCode,
+    String shippingPriorityClass,
+    int partnerPriorityLevel,
+    String deliveryType,
+    String serviceLevel,
+    String temperatureZone,
+    int packageCount,
+    int cashOnDeliveryAmount,
+    LocalDate requestedShipDate,
+    LocalDate requestedDeliveryDate,
+    String deliveryZipCode,
+    String deliveryAddress,
+    String deliveryName,
+    String deliveryPhone,
+    String specialInstruction,
+    List<Item> items) {
 
-    /**
-     * 出荷依頼電文内の商品明細。
-     *
-     * @param itemCode 商品コード
-     * @param itemName 商品名
-     * @param quantity 数量
-     * @param unitWeightGram 単位重量
-     * @author Takuya Yamamoto
-     */
-    public record Item(
-            String itemCode,
-            String itemName,
-            int quantity,
-            int unitWeightGram
-    ) {
-    }
+  /**
+   * 出荷依頼電文内の商品明細。
+   *
+   * @param itemCode 商品コード
+   * @param itemName 商品名
+   * @param quantity 数量
+   * @param sourceWarehouseLocationCode 出荷元倉庫場所コード
+   * @param unitWeightGram 単位重量
+   * @author Takuya Yamamoto
+   */
+  public record Item(
+      String itemCode,
+      String itemName,
+      int quantity,
+      String sourceWarehouseLocationCode,
+      int unitWeightGram) {}
 }

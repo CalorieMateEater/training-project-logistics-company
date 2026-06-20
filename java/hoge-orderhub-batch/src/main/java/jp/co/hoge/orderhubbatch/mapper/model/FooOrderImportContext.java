@@ -1,6 +1,7 @@
 package jp.co.hoge.orderhubbatch.mapper.model;
 
 import java.time.LocalDateTime;
+import jp.co.hoge.orderhub.common.domain.CarrierCode;
 import jp.co.hoge.orderhub.common.domain.OrderStatus;
 import jp.co.hoge.orderhub.common.domain.ShipmentRequestStatus;
 import jp.co.hoge.orderhub.common.domain.ShippingPriorityClass;
@@ -22,6 +23,7 @@ import jp.co.hoge.orderhub.common.dto.StockReservationResponse;
  * @param zipCode 郵便番号
  * @param address 配送先住所
  * @param shippingReleaseAt 出荷解放日時
+ * @param carrierCode 配送会社コード
  * @param orderStatus 注文ステータス
  * @param shippingPriorityClass 配送優先区分
  * @param shipmentRequestStatus 出荷依頼ステータス
@@ -35,27 +37,26 @@ import jp.co.hoge.orderhub.common.dto.StockReservationResponse;
  * @author Takuya Yamamoto
  */
 public record FooOrderImportContext(
-        String orderId,
-        String shipmentRequestId,
-        String notificationId,
-        String partnerOrderId,
-        int priorityLevel,
-        String customerId,
-        String itemCode,
-        int quantity,
-        LocalDateTime orderDatetime,
-        String zipCode,
-        String address,
-        LocalDateTime shippingReleaseAt,
-        OrderStatus orderStatus,
-        ShippingPriorityClass shippingPriorityClass,
-        ShipmentRequestStatus shipmentRequestStatus,
-        LocalDateTime nextRequestAfter,
-        String routingRuleId,
-        String receiptStatus,
-        String messageCode,
-        CustomerStatusResponse customerStatus,
-        StockReservationResponse reservationResponse,
-        LocalDateTime now
-) {
-}
+    String orderId,
+    String shipmentRequestId,
+    String notificationId,
+    String partnerOrderId,
+    int priorityLevel,
+    String customerId,
+    String itemCode,
+    int quantity,
+    LocalDateTime orderDatetime,
+    String zipCode,
+    String address,
+    LocalDateTime shippingReleaseAt,
+    CarrierCode carrierCode,
+    OrderStatus orderStatus,
+    ShippingPriorityClass shippingPriorityClass,
+    ShipmentRequestStatus shipmentRequestStatus,
+    LocalDateTime nextRequestAfter,
+    String routingRuleId,
+    String receiptStatus,
+    String messageCode,
+    CustomerStatusResponse customerStatus,
+    StockReservationResponse reservationResponse,
+    LocalDateTime now) {}
