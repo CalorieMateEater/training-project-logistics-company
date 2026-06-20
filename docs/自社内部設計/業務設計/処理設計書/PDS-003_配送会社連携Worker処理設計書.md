@@ -28,7 +28,7 @@ flowchart TD
     I --> J[配送会社API送信]
     J --> K{2xx応答か}
     K -- Yes --> L[注文/出荷依頼更新]
-    L --> M[Baz/Qux通知起票]
+    L --> M[Bar向けのみBaz/Qux初回通知起票]
     M --> N[SQSメッセージ削除]
     K -- No --> O{4xx業務エラーか}
     O -- Yes --> P[失敗状態更新]
@@ -45,7 +45,7 @@ flowchart TD
 | 4 | 配送会社コードが `BAR` の場合のみ、平日08:00-18:00以外なら営業時間待ちとして可視性タイムアウト延長または再投入する |
 | 5 | 配送会社コードに応じて Bar向けまたはFuga向け出荷依頼電文を編集する |
 | 6 | 対象配送会社APIへ送信し、2xxなら `ACCEPTED`、4xxなら `FAILED`、5xx/タイムアウトなら再待機扱いとする |
-| 7 | 成功時は注文状態、出荷依頼状態、連携履歴を更新し、配送会社別の受付番号を保持したうえで Baz/Qux向け通知を起票する |
+| 7 | 成功時は注文状態、出荷依頼状態、連携履歴を更新し、配送会社別の受付番号を保持したうえで Bar向け送信成功時のみ Baz/Qux向け初回通知を起票する |
 | 8 | 成功または業務エラー確定時のみSQSメッセージを削除する |
 
 ## 5. メッセージ削除条件
@@ -60,4 +60,4 @@ flowchart TD
 | `t_order_header` | `U` | `WAITING_BAR_REQUEST`、`WAITING_FUGA_REQUEST`、`BAR_ACCEPTED`、`FUGA_ACCEPTED` などを更新 |
 | `th_if_history` | `C/U` | 配送会社向け送信要求、応答、再待機結果を記録 |
 | `t_bar_idempotency_history` | `C` | 配送会社向け冪等送信キーを記録する。物理名はBar連携初版由来だが、現行ではBar/Fuga共通で利用する |
-| `th_notification_history` | `C` | Baz/Qux通知要求を起票 |
+| `th_notification_history` | `C` | Bar向け送信成功時の Baz/Qux 初回通知要求を起票 |

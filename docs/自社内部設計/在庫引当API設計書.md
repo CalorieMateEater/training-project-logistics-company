@@ -6,7 +6,7 @@
 | --- | --- | --- | --- |
 | `IF-HOGE-STK-001` | 在庫引当API | `POST /api/v1/stocks/reservations` | 倉庫場所を確定し、引当済在庫を登録する |
 | `IF-HOGE-STK-002` | 在庫引当解除API | `POST /api/v1/stocks/reservations/{reservation_id}/releases` | 未出荷取消や障害復旧時に引当済在庫を解放する |
-| `IF-HOGE-STK-003` | 在庫出荷確定API | `POST /api/v1/stocks/reservations/{reservation_id}/ship-confirms` | 配送受付済受信時に引当済在庫を出荷確定へ更新する |
+| `IF-HOGE-STK-003` | 在庫出荷確定API | `POST /api/v1/stocks/reservations/{reservation_id}/ship-confirms` | Bar社の配送受付済受信時に引当済在庫を出荷確定へ更新する |
 
 ## 2. 基本情報
 
@@ -24,7 +24,7 @@
 ## 3. 用途
 
 Hoge社保有在庫を倉庫場所単位で管理する同期API群である。  
-Foo社ファイル取込とHoge直受注登録では在庫引当APIを利用し、未出荷取消や障害復旧時には在庫引当解除API、配送受付済受信時には在庫出荷確定APIを利用する。
+Foo社ファイル取込とHoge直受注登録では在庫引当APIを利用し、未出荷取消や障害復旧時には在庫引当解除API、Bar社の配送受付済受信時には在庫出荷確定APIを利用する。
 
 ## 4. 在庫引当API
 

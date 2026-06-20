@@ -80,7 +80,7 @@ sequenceDiagram
         ResultApi-->>FugaCarrier: 受付応答
         ResultApi->>ResultWorker: 状態反映要求
         ResultWorker->>OrderHubDb: 注文情報 / 最新配送状態 R
-        ResultWorker->>StockApi: 配送受付済時に在庫出荷確定
+        ResultWorker->>StockApi: Bar社配送受付済時に在庫出荷確定
         StockApi-->>ResultWorker: 出荷確定結果
         ResultWorker->>OrderHubDb: 配送状態履歴 C
         ResultWorker->>OrderHubDb: 配送状態 / 注文状態 / 在庫引当結果 U
@@ -95,7 +95,7 @@ sequenceDiagram
 | 配送会社送信待機管理 | 出荷依頼受付API / 配送会社連携Worker | 出荷依頼 `U`、連携履歴 `C/U` | 配送会社別送信キューへ投入し、Bar向けのみ営業時間外は待機する |
 | 出荷依頼送信 | 配送会社連携Worker | 出荷依頼 `R/U`、冪等受付履歴 `C`、注文ヘッダ `U`、連携履歴 `U` | 配送条件に応じて Bar社またはFuga社へ送信 |
 | 配送結果受付 | 配送結果受付API | 連携履歴 `C/U` | Bar社またはFuga社の通知を受け付け、状態反映要求を起票する |
-| 状態管理 | 配送状態取込Worker | 注文ヘッダ `R/U`、出荷依頼 `R/U`、配送状態最新 `R/U`、配送状態履歴 `C`、在庫引当結果 `U` | 配送会社からの結果を受けて進捗を更新し、初回 `配送受付済` 受信時に在庫出荷確定を行う |
+| 状態管理 | 配送状態取込Worker | 注文ヘッダ `R/U`、出荷依頼 `R/U`、配送状態最新 `R/U`、配送状態履歴 `C`、在庫引当結果 `U` | 配送会社からの結果を受けて進捗を更新し、Bar社の初回 `配送受付済` 受信時に在庫出荷確定を行う |
 
 ## 6. 関連処理設計書
 - [PDS-003 配送会社連携Worker処理設計書](../処理設計書/PDS-003_配送会社連携Worker処理設計書.md)

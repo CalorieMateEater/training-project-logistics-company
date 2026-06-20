@@ -101,7 +101,7 @@ sequenceDiagram
         ResultApi-->>FugaSys: 受付応答
         ResultApi->>ResultWorker: 状態反映要求
         ResultWorker->>OrderHubDb: 注文情報 / 最新配送状態 R
-        ResultWorker->>StockApi: 配送受付済時に在庫出荷確定
+        ResultWorker->>StockApi: Bar社配送受付済時に在庫出荷確定
         StockApi-->>ResultWorker: 出荷確定結果
         ResultWorker->>OrderHubDb: 配送状態履歴 C
         ResultWorker->>OrderHubDb: 最新配送状態 / 注文状態 / 在庫引当結果 U
@@ -122,7 +122,7 @@ sequenceDiagram
 | 配送会社送信待機管理 | OrderHub取込Batch / 配送会社連携Worker | 出荷依頼 `U`、連携履歴 `C/U` | `bar-shipment-request-queue.fifo` または `fuga-shipment-request-queue.fifo` へ投入し、Bar向けは営業時間外に再投入する |
 | 出荷依頼送信 | 配送会社連携Worker | 出荷依頼 `R/U`、冪等受付履歴 `C`、通知履歴 `C`、連携履歴 `C/U`、注文ヘッダ `U` | 配送条件に応じて Bar または Fuga 電文を編集して送信する |
 | 配送結果受付 | 配送結果受付API | 連携履歴 `C/U` | Bar社またはFuga社の通知を受け付け、状態反映要求を起票 |
-| 配送結果反映 | 配送状態取込Worker | 配送状態履歴 `C`、配送状態最新 `R/U`、注文ヘッダ `U`、在庫引当結果 `U`、通知履歴 `C`、連携履歴 `C` | `status_seq` で順序制御し、初回 `配送受付済` 受信時に在庫出荷確定を反映する |
+| 配送結果反映 | 配送状態取込Worker | 配送状態履歴 `C`、配送状態最新 `R/U`、注文ヘッダ `U`、在庫引当結果 `U`、通知履歴 `C`、連携履歴 `C` | `status_seq` で順序制御し、Bar社の初回 `配送受付済` 受信時に在庫出荷確定を反映する |
 | 配送状態返却 | 配送結果返却Worker | 通知履歴 `R/U`、連携履歴 `U` | Foo社へ状態変化単位で返却 |
 
 ## 6. 関連処理設計書
