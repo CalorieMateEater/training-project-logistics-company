@@ -13,6 +13,8 @@
 | `HTTP-INT-004` | 出荷依頼受付API | Internal API Gateway | 在庫引当 |
 | `HTTP-INT-005` | 配送会社連携Worker | Internal API Gateway | 在庫引当解除 |
 | `HTTP-INT-006` | 配送状態取込Worker | Internal API Gateway | 在庫出荷確定 |
+| `HTTP-INT-007` | Hoge倉庫担当者端末 | Internal API Gateway | 倉庫在庫照会 |
+| `HTTP-INT-008` | Hoge倉庫担当者端末 | Internal API Gateway | 入庫登録 |
 | `HTTP-EXT-001` | 配送会社連携Worker | Bar API Gateway | Bar向け出荷依頼送信 |
 | `HTTP-EXT-002` | Bar API Gateway | 配送状態取込Worker | Bar配送結果通知 |
 | `HTTP-EXT-003` | Foo状態照会クライアント | 出荷状態照会API | 状態照会 |
@@ -41,6 +43,8 @@
 | `HTTP-INT-004` | OAuth2 Client Credentials |
 | `HTTP-INT-005` | OAuth2 Client Credentials |
 | `HTTP-INT-006` | OAuth2 Client Credentials |
+| `HTTP-INT-007` | OIDC Access Token + mTLS |
+| `HTTP-INT-008` | OIDC Access Token + mTLS |
 | `HTTP-EXT-001` | mTLS + APIキー + `X-Idempotency-Key` |
 | `HTTP-EXT-002` | 送信元証明書 + 送信元IP制御 |
 | `HTTP-EXT-003` | mTLS + APIキー |
@@ -58,6 +62,8 @@
 | `HTTP-INT-004` | 1秒 | 5秒 | 1回 | 在庫引当 |
 | `HTTP-INT-005` | 1秒 | 5秒 | 1回 | 在庫引当解除 |
 | `HTTP-INT-006` | 1秒 | 5秒 | 1回 | 在庫出荷確定 |
+| `HTTP-INT-007` | 2秒 | 5秒 | 1回 | 倉庫在庫照会 |
+| `HTTP-INT-008` | 2秒 | 10秒 | 0回 | 入庫登録 |
 | `HTTP-EXT-001` | 2秒 | 10秒 | 2回 | Bar営業時間内のみ送信 |
 | `HTTP-EXT-002` | 2秒 | 15秒 | Bar側最大2回 | Bar配送結果通知 |
 | `HTTP-EXT-003` | 2秒 | 5秒 | 1回 | 状態照会 |
@@ -72,6 +78,7 @@
 | `X-Request-Id` | リクエスト識別 |
 | `X-Correlation-Id` | 業務処理相関 |
 | `X-Caller-System` | 呼出元識別 |
+| `Authorization` | Bearer トークン |
 | `X-API-Key` | 対向認証 |
 | `X-Idempotency-Key` | 冪等制御 |
 | `X-Trace-Id` | 分散トレース |
@@ -82,3 +89,5 @@
 - Hoge社直受注は `出荷依頼受付API` を利用し、注文元は `HOGE` として登録される
 - Fuga社は注文元ではなく配送会社であるため、Hoge社へは配送結果通知のみを送信する
 - Fuga向けの配送依頼は Hoge社の配送会社連携Worker が送信する
+- 倉庫担当者端末からの在庫照会 / 入庫登録は、倉庫ネットワークから `Internal API Gateway` へ閉域接続する
+- 入庫登録APIの再試行は自動リトライせず、同一 `receipt_reference_no` を利用した利用者再送で冪等性を担保する
