@@ -34,6 +34,7 @@ sequenceDiagram
         participant OrderHubDb as OrderHubデータストア
         participant DispatchQueue as 配送会社送信待ちキュー
         participant ShipWorker as 配送会社連携Worker
+        participant BillingQueue as Baz請求通知キュー
         participant ResultApi as 配送結果受付API
         participant ResultWorker as 配送状態取込Worker
     end
@@ -49,12 +50,16 @@ sequenceDiagram
     ReqApi->>StockApi: Hoge社保有在庫の引当 / 倉庫場所確定
     StockApi-->>ReqApi: 在庫引当結果
     ReqApi->>OrderHubDb: 注文ヘッダ / 注文明細 C
-    Note over ReqApi,OrderHubDb: 注文元=HOGE を登録し、在庫引当結果と倉庫場所コードを保持する
+    Note over ReqApi,OrderHubDb: 注文元=HOGE、提携先優先度=0、優先配送区分=NORMAL を登録する\n在庫引当結果と倉庫場所コードを保持する
     ReqApi->>OrderHubDb: 顧客確認結果 / 在庫引当結果 C
     ReqApi->>OrderHubDb: 注文状態 / 出荷依頼状態 U
     ReqApi-->>HogeUser: 直受注受付応答
     ReqApi->>DispatchQueue: 配送会社送信要求投入
-    alt Fuga配送条件に合致
+    alt shipping_release_at 未到来
+        ShipWorker->>DispatchQueue: 送信要求取得
+        ShipWorker->>OrderHubDb: 出荷依頼状態 / 次回送信予定時刻 U
+        ShipWorker->>DispatchQueue: 解放日時まで可視性延長または再投入
+    else Fuga配送条件に合致
         ShipWorker->>DispatchQueue: 送信要求取得
         ShipWorker->>OrderHubDb: 注文情報 / 出荷依頼 R
         ShipWorker->>FugaCarrier: 特殊配送依頼
@@ -67,6 +72,9 @@ sequenceDiagram
         ShipWorker->>BarSys: 出荷依頼\n注文元・優先配送区分付き
         BarSys-->>ShipWorker: 配送依頼受付応答
         ShipWorker->>OrderHubDb: 出荷依頼 / 注文状態 / 連携履歴 U
+        ShipWorker->>OrderHubDb: Baz仮請求通知履歴 C
+        ShipWorker->>BillingQueue: 請求予定通知
+        ShipWorker->>OrderHubDb: 通知履歴 U
     else Bar営業時間外
         ShipWorker->>DispatchQueue: 送信要求取得
         ShipWorker->>OrderHubDb: 出荷依頼状態 / 次回送信予定時刻 U
@@ -84,6 +92,11 @@ sequenceDiagram
         StockApi-->>ResultWorker: 出荷確定結果
         ResultWorker->>OrderHubDb: 配送状態履歴 C
         ResultWorker->>OrderHubDb: 配送状態 / 注文状態 / 在庫引当結果 U
+        ResultWorker->>OrderHubDb: 通知履歴 C
+        opt 配送完了
+            ResultWorker->>BillingQueue: 確定請求通知
+        end
+        ResultWorker->>OrderHubDb: 通知履歴 U
         ResultWorker-->>HogeUser: 状態参照可能
     end
 ```
@@ -91,11 +104,11 @@ sequenceDiagram
 ## 5. 処理単位と CRUD
 | 処理単位 | 主体 | 主な DB CRUD | 補足 |
 | --- | --- | --- | --- |
-| 直受注登録 | 出荷依頼受付API | 連携履歴 `C`、注文ヘッダ `C/U`、注文明細 `C`、顧客確認結果 `C`、在庫引当結果 `C`、出荷依頼 `C/U` | `order_source=HOGE` で登録し、Hoge社保有在庫の引当結果と倉庫場所コードを保持 |
-| 配送会社送信待機管理 | 出荷依頼受付API / 配送会社連携Worker | 出荷依頼 `U`、連携履歴 `C/U` | 配送会社別送信キューへ投入し、Bar向けのみ営業時間外は待機する |
-| 出荷依頼送信 | 配送会社連携Worker | 出荷依頼 `R/U`、冪等受付履歴 `C`、注文ヘッダ `U`、連携履歴 `U` | 配送条件に応じて Bar社またはFuga社へ送信 |
+| 直受注登録 | 出荷依頼受付API | 連携履歴 `C`、注文ヘッダ `C/U`、注文明細 `C`、顧客確認結果 `C`、在庫引当結果 `C`、出荷依頼 `C/U` | 配送先・商品属性・金額スナップショットを保持し、`order_source=HOGE`、`partner_priority_level=0`、`shipping_priority_class=NORMAL`で登録する |
+| 配送会社送信待機管理 | 出荷依頼受付API / 配送会社連携Worker | 出荷依頼 `U`、連携履歴 `C/U` | 配送会社別送信キューへ投入する。配送会社を問わず出荷解放日時未到来時は待機し、Bar向けのみ営業時間外にも待機する |
+| 出荷依頼送信 | 配送会社連携Worker | 出荷依頼 `R/U`、冪等受付履歴 `C`、注文ヘッダ `U`、通知履歴 `C/U`、連携履歴 `U` | 配送条件に応じてBar社またはFuga社へ送信する。Bar向け成功時はBaz仮請求を通知するが、Hoge直受注はQux通知対象外とする |
 | 配送結果受付 | 配送結果受付API | 連携履歴 `C/U` | Bar社またはFuga社の通知を受け付け、状態反映要求を起票する |
-| 状態管理 | 配送状態取込Worker | 注文ヘッダ `R/U`、出荷依頼 `R/U`、配送状態最新 `R/U`、配送状態履歴 `C`、在庫引当結果 `U` | 配送会社からの結果を受けて進捗を更新し、Bar社の初回 `配送受付済` 受信時に在庫出荷確定を行う |
+| 状態管理 | 配送状態取込Worker | 注文ヘッダ `R/U`、出荷依頼 `R/U`、配送状態最新 `R/U`、配送状態履歴 `C`、在庫引当結果 `U`、通知履歴 `C/U` | 配送会社からの結果を受けて進捗を更新し、Bar社の初回`配送受付済`受信時に在庫出荷確定を行う。配送完了時はBazへ確定請求を通知し、Hoge直受注はQux通知対象外とする |
 
 ## 6. 関連処理設計書
 - [PDS-003 配送会社連携Worker処理設計書](../処理設計書/PDS-003_配送会社連携Worker処理設計書.md)

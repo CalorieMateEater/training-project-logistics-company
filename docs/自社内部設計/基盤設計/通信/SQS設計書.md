@@ -5,8 +5,8 @@ Hoge社 AWS アカウントで利用する SQS キューの用途、設定値、
 
 ## 2. 基本方針
 - SQS はすべて Hoge社 AWS アカウントに配置する。
-- Producer は OrderHub取込Batch、出荷依頼受付API、配送会社連携Worker とする。
-- Consumer は対向システムごとの IAM 資格情報で接続する。
+- Producer は OrderHub取込Batch、出荷依頼受付API、配送会社連携Worker、配送状態取込Worker とする。
+- 配送会社送信待ちキューは Hoge社内の配送会社連携WorkerがConsumerとなり、Baz/Qux向けキューは各対向AWSアカウントの専用IAM RoleがConsumerとしてクロスアカウント接続する。
 - DLQ は採用しない。失敗時は Consumer 側再取得と運用監視で対応する。
 - Bar社向け出荷依頼は `bar-shipment-request-queue.fifo` を介して非同期化し、営業時間外はWorker側で再投入制御する。
 - Fuga社向け出荷依頼は `fuga-shipment-request-queue.fifo` を介して非同期化し、配送条件判定後に即時送信対象としてWorkerへ引き渡す。
@@ -16,8 +16,8 @@ Hoge社 AWS アカウントで利用する SQS キューの用途、設定値、
 | --- | --- | --- | --- | --- |
 | `bar-shipment-request-queue.fifo` | FIFO | OrderHub取込Batch / 出荷依頼受付API | 配送会社連携Worker | Bar向け出荷依頼送信待ち |
 | `fuga-shipment-request-queue.fifo` | FIFO | OrderHub取込Batch / 出荷依頼受付API | 配送会社連携Worker | Fuga向け特殊配送依頼送信待ち |
-| `billing-plan-queue` | Standard | 配送会社連携Worker | Baz Billing Hub | 請求予定連携 |
-| `order-notice-queue.fifo` | FIFO | 配送会社連携Worker | Qux Mall Sync | 注文状態通知 |
+| `billing-plan-queue` | Standard | 配送会社連携Worker / 配送状態取込Worker | Baz Billing Hub | 請求予定・確定請求連携 |
+| `order-notice-queue.fifo` | FIFO | 配送会社連携Worker / 配送状態取込Worker | Qux Mall Sync | 注文状態通知 |
 
 ## 4. 設定値
 | 項目 | `bar-shipment-request-queue.fifo` | `fuga-shipment-request-queue.fifo` | `billing-plan-queue` | `order-notice-queue.fifo` |
@@ -28,8 +28,8 @@ Hoge社 AWS アカウントで利用する SQS キューの用途、設定値、
 | MaximumMessageSize | 256KB | 256KB | 256KB | 256KB |
 | 暗号化 | SSE-KMS | SSE-KMS | SSE-KMS | SSE-KMS |
 | KMS キー | `alias/hoge-orderhub-sqs` | `alias/hoge-orderhub-sqs` | `alias/hoge-orderhub-sqs` | `alias/hoge-orderhub-sqs` |
-| MessageGroupId | `carrier_code + business_date` | `carrier_code + shipping_type` | - | `tenant_code + order_id` |
-| DeduplicationId | `shipment_request_id + request_version` | `shipment_request_id + request_version` | - | `event_id` |
+| MessageGroupId | `carrier_code + business_date` | `carrier_code + shipping_type` | - | `order_id` |
+| DeduplicationId | `shipment_request_id + request_version` | `shipment_request_id + request_version` | - | `notification_key` |
 
 ## 5. 性能設計
 | 観点 | `bar-shipment-request-queue.fifo` | `fuga-shipment-request-queue.fifo` | `billing-plan-queue` | `order-notice-queue.fifo` |
@@ -44,13 +44,17 @@ Hoge社 AWS アカウントで利用する SQS キューの用途、設定値、
 | --- | --- |
 | OrderHub取込Batch / 出荷依頼受付API タスクロール | `sqs:SendMessage`, `sqs:GetQueueUrl`, `sqs:GetQueueAttributes` |
 | 配送会社連携Worker タスクロール | `sqs:SendMessage`, `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:ChangeMessageVisibility`, `sqs:GetQueueUrl`, `sqs:GetQueueAttributes` |
-| Baz Billing Hub IAM ユーザ | `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:ChangeMessageVisibility`, `sqs:GetQueueAttributes` |
-| Qux Mall Sync IAM ユーザ | `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:ChangeMessageVisibility`, `sqs:GetQueueAttributes` |
+| 配送状態取込Worker タスクロール | `billing-plan-queue`, `order-notice-queue.fifo` に対する `sqs:SendMessage`, `sqs:GetQueueUrl`, `sqs:GetQueueAttributes` |
+| Baz Billing Hub専用IAM Role | `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:ChangeMessageVisibility`, `sqs:GetQueueAttributes`, `kms:Decrypt` |
+| Qux Mall Sync専用IAM Role | `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:ChangeMessageVisibility`, `sqs:GetQueueAttributes`, `kms:Decrypt` |
 
 ## 7. ネットワーク
-- SQS 接続は Interface VPC Endpoint を経由する。
-- ECS タスクからの通信は `sg-vpce-common` 宛 `TCP/443` のみを許可する。
+- Hoge社ECSタスクからのSQS接続は、Hoge社VPCのInterface VPC Endpointを経由する。
+- Baz/Qux Consumerは、各社VPCに設置したSQS Interface VPC EndpointからAWS SQSサービスへ接続する。Hoge社VPC Endpointへ直接接続しない。
+- Hoge社ECSタスクからの通信は `sg-vpce-common` 宛 `TCP/443` のみを許可する。
 - インターネット経由の SQS アクセスは許可しない。
+- `billing-plan-queue`と`order-notice-queue.fifo`のキューポリシーは、Baz/Qux各社の専用IAM Role ARNだけに受信系操作を許可する。
+- `alias/hoge-orderhub-sqs`のKMSキーポリシーにもBaz/Qux各社の専用IAM Roleを登録し、対象キューの復号に必要な`kms:Decrypt`だけを許可する。
 
 ## 8. 運用ポイント
 - `bar-shipment-request-queue.fifo` は Bar社営業時間外に受信しても削除せず、次回送信予定時刻まで可視性タイムアウトを延長する。

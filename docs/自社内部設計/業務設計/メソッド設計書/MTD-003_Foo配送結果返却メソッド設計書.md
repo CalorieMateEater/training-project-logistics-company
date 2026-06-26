@@ -12,7 +12,7 @@
 | メソッド | 種別 | 説明 |
 | --- | --- | --- |
 | `scheduledPublish()` | `public` | スケジュール起動の入口。 |
-| `publishPendingStatusNotifications()` | `public` | Foo返却対象の配送結果をファイル化し、返却済へ更新する。 |
+| `publishPendingStatusNotifications()` | `public` | Foo返却対象の配送結果をファイル化し、HULFT送信待ちへ更新する。 |
 
 ## 3. `scheduledPublish()`
 ### 3.1 シグネチャ
@@ -33,8 +33,8 @@ public int publishPendingStatusNotifications()
 ### 4.2 処理概要
 1. Foo返却対象で `PENDING` の通知履歴を抽出する。
 2. 注文情報と現在配送状態を参照し、返却レコードを組み立てる。
-3. 返却ファイルをHULFT送信用領域へ出力する。
-4. 通知履歴を `SENT` へ更新する。
+3. 返却ファイルをHULFT送信用領域へ出力し、HULFT送信要求を登録する。
+4. 通知履歴へファイル名と送信待ち状態を反映する。`SENT` への更新はHULFT送信成功確認後に行う。
 5. 連携履歴を記録する。
 
 ### 4.3 フロー図

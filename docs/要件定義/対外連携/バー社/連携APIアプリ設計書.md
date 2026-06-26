@@ -97,7 +97,7 @@
 | 項目名 | 物理名 | 型 | 必須 | 説明 |
 | --- | --- | --- | --- | --- |
 | 注文ID | order_id | string | 必須 | Hoge社内注文ID |
-| 提携先注文ID | partner_order_id | string | 必須 | Foo社側注文ID |
+| 提携先注文ID | partner_order_id | string | 必須 | Foo注文はFoo社注文ID、Hoge直受注は`partner_request_id` |
 | 出荷依頼ID | shipment_request_id | string | 必須 | Hoge社側の配送依頼単位ID |
 | 注文元コード | order_source_code | string | 必須 | `FOO`, `HOGE` |
 | 優先配送区分 | shipping_priority_class | string | 必須 | `NORMAL`, `PRIORITY` |
@@ -116,7 +116,21 @@
 | 特記事項 | special_instruction | string | 任意 | 200文字以内 |
 | 商品明細 | items | array | 必須 | 1件以上 |
 
-### 3.6 業務バリデーション
+### 3.6 Hoge社側データ取得元・編集規則
+
+| Bar社項目 | 取得元・編集規則 |
+| --- | --- |
+| `delivery_name`, `delivery_phone`, `delivery_zip_code`, `delivery_address` | 注文受付時に保持した配送先スナップショット |
+| `package_count` | 注文受付時の荷物個数 |
+| `cash_on_delivery_amount` | 支払方法が`COD`の場合は注文の税込請求金額、それ以外は`0` |
+| `item_name`, `unit_weight_gram` | 注文受付時にStock Keeperの商品マスタから取得した商品属性スナップショット |
+| `partner_order_id` | Foo注文は`partner_order_id`、Hoge直受注は`partner_request_id` |
+| `requested_ship_date` | 出荷解放日時の日付。未指定時は配送会社送信日 |
+| `requested_delivery_date` | 注文受付時の配送希望日 |
+
+- 詳細な正本と算出規則は[業務データ・電文編集要件定義書](../../業務データ・電文編集要件定義書.md)を参照する。
+
+### 3.7 業務バリデーション
 
 | 観点 | 条件 | エラー時の扱い |
 | --- | --- | --- |
@@ -132,9 +146,9 @@
 | 配送希望日 | 出荷希望日より前日は不可 | 422 |
 | 特記事項 | 禁止語句を含む場合は受付不可 | 422 |
 
-### 3.7 バー社サーバ側冪等性
+### 3.8 バー社サーバ側冪等性
 
-#### 3.7.1 判定ルール
+#### 3.8.1 判定ルール
 
 - バー社は `X-Partner-Code + X-Idempotency-Key` を冪等性キーとして保存する
 - 冪等性キーの保持期間は48時間とする
@@ -142,7 +156,7 @@
 - 同一冪等性キーかつ異なるリクエストボディの場合、`409 Conflict` を返す
 - 異なる冪等性キーでも、同一 `shipment_request_id` が既に受付済みでキャンセルされていない場合は `409 Conflict` を返す
 
-#### 3.7.2 戻り値の考え方
+#### 3.8.2 戻り値の考え方
 
 | ケース | HTTP | 説明 |
 | --- | --- | --- |
@@ -152,15 +166,15 @@
 | 同一配送依頼の二重送信 | 409 | 業務重複 |
 | 営業時間外受付 | 503 | 受付時間外。Hoge社は再送待機へ戻す |
 
-### 3.8 優先配送の扱い
+### 3.9 優先配送の扱い
 
 - Hoge社は提携先から受け取った注文元と優先度を保持する。
 - Hoge社自身は配送資材引当や配送順制御の詳細ロジックを持たず、Bar社向けには `shipping_priority_class` のみを編集して送信する。
 - Foo注文で `shipping_priority_class=PRIORITY` の場合、Bar社は通常配送案件より優先して処理する可能性がある。
 
-### 3.9 レスポンス例
+### 3.10 レスポンス例
 
-#### 3.8.1 新規受付
+#### 3.10.1 新規受付
 
 ```json
 {
@@ -172,7 +186,7 @@
 }
 ```
 
-#### 3.8.2 同一再送
+#### 3.10.2 同一再送
 
 ```json
 {

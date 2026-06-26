@@ -44,6 +44,8 @@ sequenceDiagram
         participant AckWorker as 注文受付通知Worker
         participant CarrierQueue as 配送会社送信待ちキュー
         participant ShipWorker as 配送会社連携Worker
+        participant BillingQueue as Baz請求通知キュー
+        participant OrderNoticeQueue as Qux注文通知キュー
         participant ResultApi as 配送結果受付API
         participant ResultWorker as 配送状態取込Worker
         participant ResultNotify as 配送結果返却Worker
@@ -72,7 +74,11 @@ sequenceDiagram
     HulftTx-->>FooSys: 注文受付通知
     Note over AckWorker,CarrierQueue: 注文受付通知は配送会社送信成否と独立して返却する
     ImportBatch->>CarrierQueue: 配送会社送信要求投入
-    alt 標準配送かつBar営業時間内
+    alt shipping_release_at 未到来
+        ShipWorker->>CarrierQueue: 送信要求取得
+        ShipWorker->>OrderHubDb: 出荷依頼状態 / 次回送信予定時刻 U
+        ShipWorker->>CarrierQueue: 解放日時まで可視性延長または再投入
+    else 標準配送かつBar営業時間内
         ShipWorker->>CarrierQueue: 送信要求取得
         ShipWorker->>OrderHubDb: 注文情報 / 出荷依頼 R
         ShipWorker->>OrderHubDb: 冪等受付履歴 C
@@ -80,6 +86,9 @@ sequenceDiagram
         BarSys-->>ShipWorker: 配送依頼受付応答
         ShipWorker->>OrderHubDb: 出荷依頼 / 注文状態 / 連携履歴 U
         ShipWorker->>OrderHubDb: 通知履歴 C
+        ShipWorker->>BillingQueue: 請求予定通知
+        ShipWorker->>OrderNoticeQueue: 注文状態通知
+        ShipWorker->>OrderHubDb: 通知履歴 U
     else 標準配送かつBar営業時間外
         ShipWorker->>CarrierQueue: 送信要求取得
         ShipWorker->>OrderHubDb: 出荷依頼状態 / 次回送信予定時刻 U
@@ -91,7 +100,6 @@ sequenceDiagram
         ShipWorker->>FugaSys: 特殊配送依頼\n温度帯・サイズ区分付き
         FugaSys-->>ShipWorker: 配送依頼受付応答
         ShipWorker->>OrderHubDb: 出荷依頼 / 注文状態 / 連携履歴 U
-        ShipWorker->>OrderHubDb: 通知履歴 C
     end
     loop 配送状態イベント
         BarSys-->>ResultApi: 配送受付済 / 配送準備中 / 配送中 / 配送完了
@@ -106,6 +114,11 @@ sequenceDiagram
         ResultWorker->>OrderHubDb: 配送状態履歴 C
         ResultWorker->>OrderHubDb: 最新配送状態 / 注文状態 / 在庫引当結果 U
         ResultWorker->>OrderHubDb: 通知履歴 C
+        opt 配送完了
+            ResultWorker->>BillingQueue: 確定請求通知
+        end
+        ResultWorker->>OrderNoticeQueue: 注文状態通知
+        ResultWorker->>OrderHubDb: Baz/Qux通知履歴 U
         ResultNotify->>OrderHubDb: 注文情報 / 最新配送状態 / 通知履歴 R
         ResultNotify->>OrderHubDb: 通知履歴 / 連携履歴 U
         ResultNotify->>HulftTx: 配送状態返却ファイル送信要求
@@ -119,10 +132,10 @@ sequenceDiagram
 | --- | --- | --- | --- |
 | 注文取込 | OrderHub取込Batch | 注文ヘッダ `C/U`、注文明細 `C`、顧客確認結果 `C`、在庫引当結果 `C`、出荷依頼 `C/U`、連携履歴 `C/U` | `order_source=FOO`、`partner_priority_level`、`shipping_priority_class` を登録し、Hoge社保有在庫の引当結果と倉庫場所コードを保持 |
 | 注文受付通知 | 注文受付通知Worker | 通知履歴 `R/U`、連携履歴 `C/U` | Foo社へ受付通知 |
-| 配送会社送信待機管理 | OrderHub取込Batch / 配送会社連携Worker | 出荷依頼 `U`、連携履歴 `C/U` | `bar-shipment-request-queue.fifo` または `fuga-shipment-request-queue.fifo` へ投入し、Bar向けは営業時間外に再投入する |
-| 出荷依頼送信 | 配送会社連携Worker | 出荷依頼 `R/U`、冪等受付履歴 `C`、通知履歴 `C`、連携履歴 `C/U`、注文ヘッダ `U` | 配送条件に応じて Bar または Fuga 電文を編集して送信する |
+| 配送会社送信待機管理 | OrderHub取込Batch / 配送会社連携Worker | 出荷依頼 `U`、連携履歴 `C/U` | `bar-shipment-request-queue.fifo` または `fuga-shipment-request-queue.fifo` へ投入する。配送会社を問わず出荷解放日時未到来時は待機し、Bar向けは営業時間外にも再投入する |
+| 出荷依頼送信 | 配送会社連携Worker | 出荷依頼 `R/U`、冪等受付履歴 `C`、通知履歴 `C/U`、連携履歴 `C/U`、注文ヘッダ `U` | 配送条件に応じて Bar または Fuga 電文を編集して送信し、Bar向け成功時のみBaz/Qux初回通知をSQSへ投入する |
 | 配送結果受付 | 配送結果受付API | 連携履歴 `C/U` | Bar社またはFuga社の通知を受け付け、状態反映要求を起票 |
-| 配送結果反映 | 配送状態取込Worker | 配送状態履歴 `C`、配送状態最新 `R/U`、注文ヘッダ `U`、在庫引当結果 `U`、通知履歴 `C`、連携履歴 `C` | `status_seq` で順序制御し、Bar社の初回 `配送受付済` 受信時に在庫出荷確定を反映する |
+| 配送結果反映 | 配送状態取込Worker | 配送状態履歴 `C`、配送状態最新 `R/U`、注文ヘッダ `U`、在庫引当結果 `U`、通知履歴 `C/U`、連携履歴 `C` | `status_seq` で順序制御し、Bar社の初回 `配送受付済` 受信時に在庫出荷確定を反映する。配送完了時はBaz、状態更新時はQuxへSQS通知する |
 | 配送状態返却 | 配送結果返却Worker | 通知履歴 `R/U`、連携履歴 `U` | Foo社へ状態変化単位で返却 |
 
 ## 6. 関連処理設計書

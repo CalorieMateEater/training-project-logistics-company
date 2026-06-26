@@ -11,12 +11,12 @@
 | `HTTP-INT-002` | FooOrderImportJob | Internal API Gateway | 在庫引当 |
 | `HTTP-INT-003` | 出荷依頼受付API | Internal API Gateway | 顧客確認 |
 | `HTTP-INT-004` | 出荷依頼受付API | Internal API Gateway | 在庫引当 |
-| `HTTP-INT-005` | 配送会社連携Worker | Internal API Gateway | 在庫引当解除 |
+| `HTTP-INT-005` | 内部運用取消API | Internal API Gateway | 在庫引当解除 |
 | `HTTP-INT-006` | 配送状態取込Worker | Internal API Gateway | 在庫出荷確定 |
 | `HTTP-INT-007` | Hoge倉庫担当者端末 | Internal API Gateway | 倉庫在庫照会 |
 | `HTTP-INT-008` | Hoge倉庫担当者端末 | Internal API Gateway | 入庫登録 |
 | `HTTP-EXT-001` | 配送会社連携Worker | Bar API Gateway | Bar向け出荷依頼送信 |
-| `HTTP-EXT-002` | Bar API Gateway | 配送状態取込Worker | Bar配送結果通知 |
+| `HTTP-EXT-002` | Bar API Gateway | 配送結果受付API | Bar配送結果通知 |
 | `HTTP-EXT-003` | Foo状態照会クライアント | 出荷状態照会API | 状態照会 |
 | `HTTP-EXT-004` | Hoge直受注登録ポータル | 出荷依頼受付API | 直受注登録 |
 | `HTTP-EXT-005` | Fuga Carrier Gateway | 配送結果受付API | Fuga配送結果通知 |
@@ -29,8 +29,9 @@
 | Internal API Gateway | `internal-api.hoge.local` | 社内API入口 |
 | 出荷依頼受付API | `ship-request.hoge.local` | Hoge直受注登録受付 |
 | 出荷状態照会API | `ship-status.hoge.local` | Foo社状態照会受付 / Hoge社業務確認 |
-| 配送結果受付API | `carrier-result.hoge.local` | Bar/Fuga配送結果通知受付 |
-| Bar API Gateway | `bar-ship.bar.local` | Bar向け出荷依頼送信 |
+| Bar配送結果受付API | `delivery-result.hoge.local` | Bar配送結果通知受付 |
+| Fuga配送結果受付API | `fuga-result.hoge.local` | Fuga配送結果通知受付 |
+| Bar API Gateway | `shipment-api.bar.local` | Bar向け出荷依頼送信 |
 | Fuga Carrier Gateway | `fuga-shipment.fuga.local` | Fuga向け特殊配送依頼送信 |
 
 ## 4. 認証方式
@@ -45,11 +46,11 @@
 | `HTTP-INT-006` | OAuth2 Client Credentials |
 | `HTTP-INT-007` | OIDC Access Token + mTLS |
 | `HTTP-INT-008` | OIDC Access Token + mTLS |
-| `HTTP-EXT-001` | mTLS + APIキー + `X-Idempotency-Key` |
-| `HTTP-EXT-002` | 送信元証明書 + 送信元IP制御 |
+| `HTTP-EXT-001` | APIキー + 接続元IP制限 + `X-Idempotency-Key` |
+| `HTTP-EXT-002` | 共有APIキー + 接続元IP制限 |
 | `HTTP-EXT-003` | mTLS + APIキー |
 | `HTTP-EXT-004` | mTLS + APIキー |
-| `HTTP-EXT-005` | 送信元証明書 + 送信元IP制御 |
+| `HTTP-EXT-005` | mTLS + APIキー + 接続元CIDR制限 |
 | `HTTP-EXT-006` | mTLS + APIキー + `X-Idempotency-Key` |
 
 ## 5. タイムアウト・リトライ
@@ -64,8 +65,8 @@
 | `HTTP-INT-006` | 1秒 | 5秒 | 1回 | 在庫出荷確定 |
 | `HTTP-INT-007` | 2秒 | 5秒 | 1回 | 倉庫在庫照会 |
 | `HTTP-INT-008` | 2秒 | 10秒 | 0回 | 入庫登録 |
-| `HTTP-EXT-001` | 2秒 | 10秒 | 2回 | Bar営業時間内のみ送信 |
-| `HTTP-EXT-002` | 2秒 | 15秒 | Bar側最大2回 | Bar配送結果通知 |
+| `HTTP-EXT-001` | 1秒 | 5秒 | 最大1回 | Bar営業時間内のみ送信。通信失敗、502、503、504を再送対象とする |
+| `HTTP-EXT-002` | 1秒 | 5秒 | Bar側最大2回 | Bar配送結果通知 |
 | `HTTP-EXT-003` | 2秒 | 5秒 | 1回 | 状態照会 |
 | `HTTP-EXT-004` | 2秒 | 10秒 | 1回 | 直受注登録 |
 | `HTTP-EXT-005` | 2秒 | 15秒 | Fuga側最大2回 | 配送結果通知 |

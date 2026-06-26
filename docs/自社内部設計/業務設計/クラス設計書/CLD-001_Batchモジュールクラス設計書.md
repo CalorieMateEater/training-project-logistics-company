@@ -59,7 +59,7 @@ classDiagram
 
 ## 4. 責務分割方針
 - `BatchJobController` はジョブ起動要求の受け口に限定し、業務処理を持たない。
-- `FooOrderImportService` は現在、入力検証、外部API呼出、DB登録、通知ファイル出力をまとめて持つ。
+- `FooOrderImportService` は入力検証、外部API呼出、DB登録、注文受付通知対象登録をまとめて持つ。通知ファイルの物理出力は注文受付通知Workerが担う。
 - `ArchiveService` は抽出、ファイル出力、実行履歴登録を1クラスで担当する。
 - `CustomerRegistryClient`、`StockKeeperClient` は外部I/F呼出専用とし、DTO変換に責務を限定する。
 
