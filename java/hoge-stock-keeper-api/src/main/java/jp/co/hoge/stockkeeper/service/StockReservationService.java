@@ -1,15 +1,21 @@
 package jp.co.hoge.stockkeeper.service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import jp.co.hoge.orderhub.common.dto.StockReservationOperationResponse;
 import jp.co.hoge.orderhub.common.dto.StockReservationRequest;
 import jp.co.hoge.orderhub.common.dto.StockReservationResponse;
 import jp.co.hoge.orderhub.common.support.IdFactory;
+import jp.co.hoge.orderhub.common.support.TimeProvider;
+import jp.co.hoge.stockkeeper.entity.StockBalanceEntity;
 import jp.co.hoge.stockkeeper.entity.StockItemEntity;
 import jp.co.hoge.stockkeeper.entity.StockReservationLedgerEntity;
+import jp.co.hoge.stockkeeper.entity.StockTransactionEntity;
+import jp.co.hoge.stockkeeper.repository.StockBalanceRepository;
 import jp.co.hoge.stockkeeper.repository.StockItemRepository;
 import jp.co.hoge.stockkeeper.repository.StockReservationLedgerRepository;
+import jp.co.hoge.stockkeeper.repository.StockTransactionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -26,14 +32,23 @@ import org.springframework.web.server.ResponseStatusException;
 @Slf4j
 @RequiredArgsConstructor
 public class StockReservationService {
-  /** 在庫参照先。 */
+  /** 商品マスタ参照先。 */
   private final StockItemRepository stockItemRepository;
+
+  /** 在庫残高参照先。 */
+  private final StockBalanceRepository stockBalanceRepository;
 
   /** 在庫引当台帳参照先。 */
   private final StockReservationLedgerRepository stockReservationLedgerRepository;
 
+  /** 在庫トランザクション履歴参照先。 */
+  private final StockTransactionRepository stockTransactionRepository;
+
   /** ID 採番サービス。 */
   private final IdFactory idFactory;
+
+  /** 現在時刻提供サービス。 */
+  private final TimeProvider timeProvider;
 
   /**
    * 在庫引当を実行する。
@@ -55,28 +70,51 @@ public class StockReservationService {
       if (item.quantity() < 1 || item.quantity() > 999) {
         throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "quantity out of range");
       }
+      StockItemEntity itemMaster =
+          stockItemRepository
+              .findByItemCodeAndActiveFlagTrue(item.itemCode())
+              .orElseThrow(
+                  () ->
+                      new ResponseStatusException(
+                          HttpStatus.UNPROCESSABLE_ENTITY, "item not found"));
 
-      StockItemEntity stockItem = selectStock(item.itemCode(), item.quantity());
-      if (stockItem == null) {
-        throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "insufficient stock");
-      }
+      StockBalanceEntity balance = selectStock(item.itemCode(), item.quantity());
+      int beforeOnHand = balance.getOnHandQuantity();
+      int beforeReserved = balance.getReservedQuantity();
+      balance.setReservedQuantity(balance.getReservedQuantity() + item.quantity());
+      balance.setUpdatedAt(timeProvider.now());
+      stockBalanceRepository.save(balance);
 
-      stockItem.setReservedQuantity(stockItem.getReservedQuantity() + item.quantity());
-      stockItem.setAvailableQuantity(calculateAvailable(stockItem));
-      stockItemRepository.save(stockItem);
       stockReservationLedgerRepository.save(
-          toReservationLedger(request.orderId(), reservationId, item, stockItem));
+          toReservationLedger(request.orderId(), reservationId, item, balance));
+      stockTransactionRepository.save(
+          toTransaction(
+              "RESERVE",
+              reservationId,
+              null,
+              request.orderId(),
+              item.itemCode(),
+              balance.getWarehouseLocationCode(),
+              item.quantity(),
+              beforeOnHand,
+              beforeReserved,
+              balance.getOnHandQuantity(),
+              balance.getReservedQuantity()));
 
       results.add(
           new StockReservationResponse.ReservationResult(
-              stockItem.getItemCode(),
+              balance.getItemCode(),
               item.quantity(),
               item.quantity(),
-              stockItem.getWarehouseLocationCode(),
+              balance.getWarehouseLocationCode(),
               "RESERVED",
-              stockItem.getOnHandQuantity(),
-              stockItem.getReservedQuantity(),
-              stockItem.getAvailableQuantity()));
+              balance.getOnHandQuantity(),
+              balance.getReservedQuantity(),
+              balance.availableQuantity(),
+              itemMaster.getItemName(),
+              itemMaster.getUnitWeightGram(),
+              itemMaster.getTemperatureZone(),
+              itemMaster.getSizeType()));
     }
 
     log.info(
@@ -110,26 +148,33 @@ public class StockReservationService {
         throw new ResponseStatusException(HttpStatus.CONFLICT, "already shipped confirmed");
       }
 
-      StockItemEntity stockItem =
+      StockBalanceEntity balance =
           findStock(ledger.getItemCode(), ledger.getWarehouseLocationCode());
       if (!"RELEASED".equals(ledger.getReservationStatus())) {
-        stockItem.setReservedQuantity(
-            Math.max(0, stockItem.getReservedQuantity() - ledger.getReservedQuantity()));
-        stockItem.setAvailableQuantity(calculateAvailable(stockItem));
-        stockItemRepository.save(stockItem);
+        int beforeOnHand = balance.getOnHandQuantity();
+        int beforeReserved = balance.getReservedQuantity();
+        balance.setReservedQuantity(
+            Math.max(0, balance.getReservedQuantity() - ledger.getReservedQuantity()));
+        balance.setUpdatedAt(timeProvider.now());
+        stockBalanceRepository.save(balance);
         ledger.setReservationStatus("RELEASED");
         stockReservationLedgerRepository.save(ledger);
+        stockTransactionRepository.save(
+            toTransaction(
+                "RELEASE",
+                reservationId,
+                null,
+                ledger.getOrderId(),
+                ledger.getItemCode(),
+                ledger.getWarehouseLocationCode(),
+                ledger.getReservedQuantity(),
+                beforeOnHand,
+                beforeReserved,
+                balance.getOnHandQuantity(),
+                balance.getReservedQuantity()));
       }
 
-      results.add(
-          new StockReservationOperationResponse.OperationResult(
-              ledger.getItemCode(),
-              ledger.getWarehouseLocationCode(),
-              ledger.getReservedQuantity(),
-              ledger.getReservationStatus(),
-              stockItem.getOnHandQuantity(),
-              stockItem.getReservedQuantity(),
-              stockItem.getAvailableQuantity()));
+      results.add(toOperationResult(ledger, balance));
     }
 
     log.info(
@@ -162,27 +207,34 @@ public class StockReservationService {
         throw new ResponseStatusException(HttpStatus.CONFLICT, "already released");
       }
 
-      StockItemEntity stockItem =
+      StockBalanceEntity balance =
           findStock(ledger.getItemCode(), ledger.getWarehouseLocationCode());
       if (!"SHIPPED_CONFIRMED".equals(ledger.getReservationStatus())) {
-        stockItem.setOnHandQuantity(stockItem.getOnHandQuantity() - ledger.getReservedQuantity());
-        stockItem.setReservedQuantity(
-            Math.max(0, stockItem.getReservedQuantity() - ledger.getReservedQuantity()));
-        stockItem.setAvailableQuantity(calculateAvailable(stockItem));
-        stockItemRepository.save(stockItem);
+        int beforeOnHand = balance.getOnHandQuantity();
+        int beforeReserved = balance.getReservedQuantity();
+        balance.setOnHandQuantity(balance.getOnHandQuantity() - ledger.getReservedQuantity());
+        balance.setReservedQuantity(
+            Math.max(0, balance.getReservedQuantity() - ledger.getReservedQuantity()));
+        balance.setUpdatedAt(timeProvider.now());
+        stockBalanceRepository.save(balance);
         ledger.setReservationStatus("SHIPPED_CONFIRMED");
         stockReservationLedgerRepository.save(ledger);
+        stockTransactionRepository.save(
+            toTransaction(
+                "SHIP_CONFIRM",
+                reservationId,
+                null,
+                ledger.getOrderId(),
+                ledger.getItemCode(),
+                ledger.getWarehouseLocationCode(),
+                ledger.getReservedQuantity(),
+                beforeOnHand,
+                beforeReserved,
+                balance.getOnHandQuantity(),
+                balance.getReservedQuantity()));
       }
 
-      results.add(
-          new StockReservationOperationResponse.OperationResult(
-              ledger.getItemCode(),
-              ledger.getWarehouseLocationCode(),
-              ledger.getReservedQuantity(),
-              ledger.getReservationStatus(),
-              stockItem.getOnHandQuantity(),
-              stockItem.getReservedQuantity(),
-              stockItem.getAvailableQuantity()));
+      results.add(toOperationResult(ledger, balance));
     }
 
     log.info(
@@ -192,16 +244,23 @@ public class StockReservationService {
     return new StockReservationOperationResponse(reservationId, "SHIPPED_CONFIRMED", results);
   }
 
-  private StockItemEntity selectStock(String itemCode, int quantity) {
-    return stockItemRepository.findByItemCodeOrderByAvailableQuantityDesc(itemCode).stream()
-        .filter(stockItem -> stockItem.getAvailableQuantity() >= quantity)
+  private StockBalanceEntity selectStock(String itemCode, int quantity) {
+    return stockBalanceRepository.findByItemCodeOrderByAvailableQuantityDesc(itemCode).stream()
+        .filter(balance -> balance.availableQuantity() >= quantity)
         .findFirst()
-        .orElse(null);
+        .flatMap(
+            balance ->
+                stockBalanceRepository.findForUpdate(
+                    balance.getItemCode(), balance.getWarehouseLocationCode()))
+        .filter(balance -> balance.availableQuantity() >= quantity)
+        .orElseThrow(
+            () ->
+                new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "insufficient stock"));
   }
 
-  private StockItemEntity findStock(String itemCode, String warehouseLocationCode) {
-    return stockItemRepository
-        .findByItemCodeAndWarehouseLocationCode(itemCode, warehouseLocationCode)
+  private StockBalanceEntity findStock(String itemCode, String warehouseLocationCode) {
+    return stockBalanceRepository
+        .findForUpdate(itemCode, warehouseLocationCode)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "stock not found"));
   }
 
@@ -209,19 +268,56 @@ public class StockReservationService {
       String orderId,
       String reservationId,
       StockReservationRequest.ReservationItem item,
-      StockItemEntity stockItem) {
+      StockBalanceEntity balance) {
     StockReservationLedgerEntity ledger = new StockReservationLedgerEntity();
     ledger.setReservationId(reservationId);
     ledger.setOrderId(orderId);
     ledger.setItemCode(item.itemCode());
-    ledger.setWarehouseLocationCode(stockItem.getWarehouseLocationCode());
+    ledger.setWarehouseLocationCode(balance.getWarehouseLocationCode());
     ledger.setRequestedQuantity(item.quantity());
     ledger.setReservedQuantity(item.quantity());
     ledger.setReservationStatus("RESERVED");
     return ledger;
   }
 
-  private int calculateAvailable(StockItemEntity stockItem) {
-    return stockItem.getOnHandQuantity() - stockItem.getReservedQuantity();
+  private StockReservationOperationResponse.OperationResult toOperationResult(
+      StockReservationLedgerEntity ledger, StockBalanceEntity balance) {
+    return new StockReservationOperationResponse.OperationResult(
+        ledger.getItemCode(),
+        ledger.getWarehouseLocationCode(),
+        ledger.getReservedQuantity(),
+        ledger.getReservationStatus(),
+        balance.getOnHandQuantity(),
+        balance.getReservedQuantity(),
+        balance.availableQuantity());
+  }
+
+  private StockTransactionEntity toTransaction(
+      String txType,
+      String reservationId,
+      String receiptReferenceNo,
+      String orderId,
+      String itemCode,
+      String warehouseLocationCode,
+      int quantity,
+      int beforeOnHand,
+      int beforeReserved,
+      int afterOnHand,
+      int afterReserved) {
+    StockTransactionEntity transaction = new StockTransactionEntity();
+    transaction.setTxType(txType);
+    transaction.setReservationId(reservationId);
+    transaction.setReceiptReferenceNo(receiptReferenceNo);
+    transaction.setOrderId(orderId);
+    transaction.setOrderLineNo(1);
+    transaction.setItemCode(itemCode);
+    transaction.setWarehouseLocationCode(warehouseLocationCode);
+    transaction.setQuantity(quantity);
+    transaction.setBeforeOnHandQuantity(beforeOnHand);
+    transaction.setBeforeReservedQuantity(beforeReserved);
+    transaction.setAfterOnHandQuantity(afterOnHand);
+    transaction.setAfterReservedQuantity(afterReserved);
+    transaction.setOccurredAt(LocalDateTime.from(timeProvider.now()));
+    return transaction;
   }
 }

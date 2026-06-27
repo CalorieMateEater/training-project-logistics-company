@@ -35,8 +35,36 @@ public class OrderLineEntity {
   private int quantity;
 
   /** 商品名。 */
-  @Column(name = "item_name", length = 128)
+  @Column(name = "item_name_snapshot", length = 128)
   private String itemName;
+
+  /** 税抜単価。 */
+  @Column(name = "unit_price_excluding_tax", nullable = false)
+  private int unitPriceExcludingTax;
+
+  /** 消費税率。 */
+  @Column(name = "tax_rate", nullable = false)
+  private int taxRate;
+
+  /** 明細税抜小計。 */
+  @Column(name = "line_subtotal_excluding_tax", nullable = false)
+  private int lineSubtotalExcludingTax;
+
+  /** 明細消費税額。 */
+  @Column(name = "line_tax_amount", nullable = false)
+  private int lineTaxAmount;
+
+  /** 単位重量スナップショット。 */
+  @Column(name = "unit_weight_gram_snapshot", nullable = false)
+  private int unitWeightGramSnapshot;
+
+  /** 温度帯スナップショット。 */
+  @Column(name = "temperature_zone_snapshot", nullable = false, length = 16)
+  private String temperatureZoneSnapshot;
+
+  /** サイズ区分スナップショット。 */
+  @Column(name = "size_type_snapshot", nullable = false, length = 16)
+  private String sizeTypeSnapshot;
 
   /** 出荷元倉庫場所コード。 */
   @Column(name = "source_warehouse_location_code", length = 32)
@@ -130,6 +158,132 @@ public class OrderLineEntity {
    */
   public void setItemName(String itemName) {
     this.itemName = itemName;
+  }
+
+  /**
+   * 税抜単価を返却する。
+   *
+   * @return 税抜単価
+   */
+  public int getUnitPriceExcludingTax() {
+    return unitPriceExcludingTax;
+  }
+
+  /**
+   * 税抜単価を設定する。
+   *
+   * @param unitPriceExcludingTax 税抜単価
+   */
+  public void setUnitPriceExcludingTax(int unitPriceExcludingTax) {
+    this.unitPriceExcludingTax = unitPriceExcludingTax;
+  }
+
+  /**
+   * 消費税率を返却する。
+   *
+   * @return 消費税率
+   */
+  public int getTaxRate() {
+    return taxRate;
+  }
+
+  /**
+   * 消費税率を設定する。
+   *
+   * @param taxRate 消費税率
+   */
+  public void setTaxRate(int taxRate) {
+    this.taxRate = taxRate;
+  }
+
+  /**
+   * 明細税抜小計を返却する。
+   *
+   * @return 明細税抜小計
+   */
+  public int getLineSubtotalExcludingTax() {
+    return lineSubtotalExcludingTax;
+  }
+
+  /**
+   * 明細税抜小計を設定する。
+   *
+   * @param lineSubtotalExcludingTax 明細税抜小計
+   */
+  public void setLineSubtotalExcludingTax(int lineSubtotalExcludingTax) {
+    this.lineSubtotalExcludingTax = lineSubtotalExcludingTax;
+  }
+
+  /**
+   * 明細消費税額を返却する。
+   *
+   * @return 明細消費税額
+   */
+  public int getLineTaxAmount() {
+    return lineTaxAmount;
+  }
+
+  /**
+   * 明細消費税額を設定する。
+   *
+   * @param lineTaxAmount 明細消費税額
+   */
+  public void setLineTaxAmount(int lineTaxAmount) {
+    this.lineTaxAmount = lineTaxAmount;
+  }
+
+  /**
+   * 単位重量スナップショットを返却する。
+   *
+   * @return 単位重量スナップショット
+   */
+  public int getUnitWeightGramSnapshot() {
+    return unitWeightGramSnapshot;
+  }
+
+  /**
+   * 単位重量スナップショットを設定する。
+   *
+   * @param unitWeightGramSnapshot 単位重量スナップショット
+   */
+  public void setUnitWeightGramSnapshot(int unitWeightGramSnapshot) {
+    this.unitWeightGramSnapshot = unitWeightGramSnapshot;
+  }
+
+  /**
+   * 温度帯スナップショットを返却する。
+   *
+   * @return 温度帯スナップショット
+   */
+  public String getTemperatureZoneSnapshot() {
+    return temperatureZoneSnapshot;
+  }
+
+  /**
+   * 温度帯スナップショットを設定する。
+   *
+   * @param temperatureZoneSnapshot 温度帯スナップショット
+   */
+  public void setTemperatureZoneSnapshot(String temperatureZoneSnapshot) {
+    this.temperatureZoneSnapshot = temperatureZoneSnapshot;
+  }
+
+  /**
+   * サイズ区分スナップショットを返却する。
+   *
+   * @return サイズ区分スナップショット
+   */
+  public String getSizeTypeSnapshot() {
+    return sizeTypeSnapshot;
+  }
+
+  /**
+   * サイズ区分スナップショットを設定する。
+   *
+   * @param sizeTypeSnapshot サイズ区分スナップショット
+   */
+  public void setSizeTypeSnapshot(String sizeTypeSnapshot) {
+    this.sizeTypeSnapshot = sizeTypeSnapshot;
   }
 
   /**

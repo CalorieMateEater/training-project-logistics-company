@@ -12,6 +12,7 @@ import jp.co.hoge.orderhub.common.domain.InterfaceDirection;
 import jp.co.hoge.orderhub.common.domain.InterfaceStatus;
 import jp.co.hoge.orderhub.common.domain.NotificationStatus;
 import jp.co.hoge.orderhub.common.domain.NotificationType;
+import jp.co.hoge.orderhub.common.domain.OrderSource;
 import jp.co.hoge.orderhub.common.domain.OrderStatus;
 import jp.co.hoge.orderhub.common.domain.ShipmentRequestStatus;
 import jp.co.hoge.orderhub.common.dto.BarShipmentAcceptedResponse;
@@ -225,24 +226,28 @@ public class ShipmentDispatchWorkerService {
             "201",
             acceptedCompanyCode.toLowerCase() + " accepted");
 
-        createNotification(
-            order,
-            NotificationType.BAZ_BILLING,
-            "billing-plan-queue",
-            "PROVISIONAL_BILLING",
-            DeliveryStatusCode.ACCEPTED.name(),
-            null,
-            null,
-            "baz-billing:" + order.getOrderId() + ":provisional");
-        createNotification(
-            order,
-            NotificationType.QUX_ORDER,
-            "order-notice-queue.fifo",
-            "SHIPMENT_REQUESTED",
-            OrderStatus.BAR_ACCEPTED.name(),
-            SHIPMENT_REQUESTED_DISPLAY_NAME,
-            null,
-            "qux-shipment:" + order.getOrderId());
+        if (barCarrier) {
+          createNotification(
+              order,
+              NotificationType.BAZ_BILLING,
+              "billing-plan-queue",
+              "PROVISIONAL_BILLING",
+              DeliveryStatusCode.ACCEPTED.name(),
+              null,
+              null,
+              "baz-billing:" + order.getOrderId() + ":provisional");
+          if (order.getOrderSource() == OrderSource.FOO) {
+            createNotification(
+                order,
+                NotificationType.QUX_ORDER,
+                "order-notice-queue.fifo",
+                "SHIPMENT_REQUESTED",
+                OrderStatus.BAR_ACCEPTED.name(),
+                SHIPMENT_REQUESTED_DISPLAY_NAME,
+                null,
+                "qux-shipment:" + order.getOrderId());
+          }
+        }
         log.info(
             "APP_BATCH_RECORD_FINISH function=shipmentDispatch orderId={} shipmentRequestId={} carrierCode={} result=accepted",
             order.getOrderId(),

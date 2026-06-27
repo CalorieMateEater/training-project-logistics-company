@@ -78,6 +78,7 @@ class WorkerFlowIT {
     order.setCarrierCode(CarrierCode.BAR);
     order.setDeliveryZipCode("1000001");
     order.setDeliveryAddress("Tokyo");
+    applyOrderSnapshot(order);
     order.setCreatedAt(now);
     order.setUpdatedAt(now);
     orderHeaderRepository.save(order);
@@ -88,6 +89,7 @@ class WorkerFlowIT {
     line.setItemCode("ITM0000001");
     line.setItemName("FooOrderedItem");
     line.setQuantity(1);
+    applyLineSnapshot(line);
     orderLineRepository.save(line);
 
     ShipmentRequestEntity shipmentRequest = new ShipmentRequestEntity();
@@ -158,5 +160,27 @@ class WorkerFlowIT {
     } catch (IOException exception) {
       throw new IllegalStateException(exception);
     }
+  }
+
+  private void applyOrderSnapshot(OrderHeaderEntity order) {
+    order.setDeliveryName("Test User");
+    order.setDeliveryPhone("0312345678");
+    order.setPackageCount(1);
+    order.setPaymentMethod("PREPAID");
+    order.setRequestedDeliveryDate(java.time.LocalDate.now().plusDays(1));
+    order.setSpecialInstruction("Handle with care");
+    order.setSubtotalExcludingTax(5000);
+    order.setTaxAmount(500);
+    order.setBillingAmount(5500);
+  }
+
+  private void applyLineSnapshot(OrderLineEntity line) {
+    line.setUnitPriceExcludingTax(5000);
+    line.setTaxRate(10);
+    line.setLineSubtotalExcludingTax(5000);
+    line.setLineTaxAmount(500);
+    line.setUnitWeightGramSnapshot(1000);
+    line.setTemperatureZoneSnapshot("AMBIENT");
+    line.setSizeTypeSnapshot("NORMAL");
   }
 }

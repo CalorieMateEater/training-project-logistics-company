@@ -62,7 +62,18 @@ class ShipmentGatewayApiIT {
                 "RESERVED",
                 List.of(
                     new StockReservationResponse.ReservationResult(
-                        "ITM0000001", 1, 1, "WH-TYO-01", "RESERVED", 100, 1, 99))));
+                        "ITM0000001",
+                        1,
+                        1,
+                        "WH-TYO-01",
+                        "RESERVED",
+                        100,
+                        1,
+                        99,
+                        "StandardItemA",
+                        1000,
+                        "AMBIENT",
+                        "NORMAL"))));
 
     mockMvc
         .perform(
@@ -87,7 +98,14 @@ class ShipmentGatewayApiIT {
                                   },
                                   "deliveryZipCode": "1000001",
                                   "deliveryAddress": "Tokyo",
-                                  "requestedDeliveryDate": "2026-06-18",
+                                  "deliveryName": "Test User",
+                                  "deliveryPhone": "0312345678",
+                                  "packageCount": 1,
+                                  "paymentMethod": "PREPAID",
+                                  "unitPriceExcludingTax": 5000,
+                                  "taxRate": 10,
+                                  "requestedDeliveryDate": "2099-06-18",
+                                  "specialInstruction": "Handle with care",
                                   "shippingReleaseAt": "2099-06-18T09:00:00"
                                 }
                                 """))
@@ -111,6 +129,7 @@ class ShipmentGatewayApiIT {
     order.setCarrierCode(CarrierCode.BAR);
     order.setDeliveryZipCode("1000001");
     order.setDeliveryAddress("Tokyo");
+    applyOrderSnapshot(order);
     order.setCreatedAt(LocalDateTime.now());
     order.setUpdatedAt(LocalDateTime.now());
     orderHeaderRepository.save(order);
@@ -178,6 +197,7 @@ class ShipmentGatewayApiIT {
     order.setCarrierCode(CarrierCode.BAR);
     order.setDeliveryZipCode("1000001");
     order.setDeliveryAddress("Tokyo");
+    applyOrderSnapshot(order);
     order.setCreatedAt(LocalDateTime.now());
     order.setUpdatedAt(LocalDateTime.now());
     orderHeaderRepository.save(order);
@@ -242,6 +262,7 @@ class ShipmentGatewayApiIT {
     order.setCarrierCode(CarrierCode.BAR);
     order.setDeliveryZipCode("1000001");
     order.setDeliveryAddress("Tokyo");
+    applyOrderSnapshot(order);
     order.setCreatedAt(LocalDateTime.now());
     order.setUpdatedAt(LocalDateTime.now());
     orderHeaderRepository.save(order);
@@ -282,5 +303,17 @@ class ShipmentGatewayApiIT {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.cancelStatus").value("CANCELLED"))
         .andExpect(jsonPath("$.currentStatus").value("CANCELLED"));
+  }
+
+  private void applyOrderSnapshot(OrderHeaderEntity order) {
+    order.setDeliveryName("Test User");
+    order.setDeliveryPhone("0312345678");
+    order.setPackageCount(1);
+    order.setPaymentMethod("PREPAID");
+    order.setRequestedDeliveryDate(java.time.LocalDate.of(2026, 6, 18));
+    order.setSpecialInstruction("Handle with care");
+    order.setSubtotalExcludingTax(5000);
+    order.setTaxAmount(500);
+    order.setBillingAmount(5500);
   }
 }

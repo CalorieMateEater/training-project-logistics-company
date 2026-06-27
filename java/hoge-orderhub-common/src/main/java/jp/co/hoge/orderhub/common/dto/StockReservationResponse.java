@@ -24,6 +24,10 @@ public record StockReservationResponse(
    * @param onHandQuantity 保有在庫数
    * @param reservedTotalQuantity 引当済在庫数
    * @param availableQuantity 利用可能在庫数
+   * @param itemName 商品名
+   * @param unitWeightGram 単位重量
+   * @param temperatureZone 温度帯
+   * @param sizeType サイズ区分
    * @author Takuya Yamamoto
    */
   public record ReservationResult(
@@ -34,5 +38,9 @@ public record StockReservationResponse(
       String reservationStatus,
       int onHandQuantity,
       int reservedTotalQuantity,
-      int availableQuantity) {}
+      int availableQuantity,
+      String itemName,
+      int unitWeightGram,
+      String temperatureZone,
+      String sizeType) {}
 }

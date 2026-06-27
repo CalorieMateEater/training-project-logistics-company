@@ -66,12 +66,23 @@ class FooOrderImportBatchIT {
                 "RESERVED",
                 List.of(
                     new StockReservationResponse.ReservationResult(
-                        "ITM0000001", 2, 2, "WH-TYO-01", "RESERVED", 100, 2, 98))));
+                        "ITM0000001",
+                        2,
+                        2,
+                        "WH-TYO-01",
+                        "RESERVED",
+                        100,
+                        2,
+                        98,
+                        "StandardItemA",
+                        1000,
+                        "AMBIENT",
+                        "NORMAL"))));
 
     Path input = TEMP_DIR.resolve("FOO_ORDER_20260617090000000_001.dat");
     Files.writeString(
         input,
-        "D,FO202606170001,02,8,C00000000001,ITM0000001,2,2026-06-17T09:00:00,1000001,Tokyo,2099-06-18T09:00:00");
+        "D,FO202606170001,02,8,C00000000001,ITM0000001,2,5000,10,2026-06-17T09:00:00,1000001,Tokyo,Test User,0312345678,1,PREPAID,2026-06-18,,2099-06-18T09:00:00");
 
     mockMvc
         .perform(

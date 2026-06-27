@@ -31,16 +31,25 @@ public interface ShipmentDispatchMapper {
   @Mapping(target = "partnerPriorityLevel", source = "orderHeader.partnerPriorityLevel")
   @Mapping(target = "deliveryType", constant = "NORMAL")
   @Mapping(target = "serviceLevel", constant = "NEXT_DAY")
-  @Mapping(target = "temperatureZone", constant = "AMBIENT")
-  @Mapping(target = "packageCount", expression = "java(source.orderLines().size())")
-  @Mapping(target = "cashOnDeliveryAmount", constant = "0")
+  @Mapping(
+      target = "temperatureZone",
+      expression =
+          "java(source.orderLines().isEmpty() ? \"AMBIENT\" : source.orderLines().get(0).getTemperatureZoneSnapshot())")
+  @Mapping(target = "packageCount", source = "orderHeader.packageCount")
+  @Mapping(
+      target = "cashOnDeliveryAmount",
+      expression =
+          "java(\"COD\".equals(source.orderHeader().getPaymentMethod()) ? source.orderHeader().getBillingAmount() : 0)")
   @Mapping(target = "requestedShipDate", source = "requestedShipDate")
-  @Mapping(target = "requestedDeliveryDate", source = "requestedDeliveryDate")
+  @Mapping(
+      target = "requestedDeliveryDate",
+      expression =
+          "java(source.orderHeader().getRequestedDeliveryDate() == null ? source.requestedDeliveryDate() : source.orderHeader().getRequestedDeliveryDate())")
   @Mapping(target = "deliveryZipCode", source = "orderHeader.deliveryZipCode")
   @Mapping(target = "deliveryAddress", source = "orderHeader.deliveryAddress")
-  @Mapping(target = "deliveryName", constant = "DESTINATION_NAME_UNSPECIFIED")
-  @Mapping(target = "deliveryPhone", constant = "0000000000")
-  @Mapping(target = "specialInstruction", constant = "AUTO_DISPATCH")
+  @Mapping(target = "deliveryName", source = "orderHeader.deliveryName")
+  @Mapping(target = "deliveryPhone", source = "orderHeader.deliveryPhone")
+  @Mapping(target = "specialInstruction", source = "orderHeader.specialInstruction")
   @Mapping(target = "items", source = "orderLines")
   BarShipmentRequestPayload toBarShipmentRequestPayload(ShipmentDispatchContext source);
 
@@ -55,7 +64,7 @@ public interface ShipmentDispatchMapper {
       expression =
           "java(source.getItemName() == null ? source.getItemCode() : source.getItemName())")
   @Mapping(target = "sourceWarehouseLocationCode", source = "sourceWarehouseLocationCode")
-  @Mapping(target = "unitWeightGram", constant = "1000")
+  @Mapping(target = "unitWeightGram", source = "unitWeightGramSnapshot")
   BarShipmentRequestPayload.Item toBarShipmentRequestItem(OrderLineEntity source);
 
   /**

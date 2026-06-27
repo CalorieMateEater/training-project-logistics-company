@@ -1,6 +1,5 @@
 package jp.co.hoge.stockkeeper.repository;
 
-import java.util.List;
 import java.util.Optional;
 import jp.co.hoge.stockkeeper.entity.StockItemEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,22 +9,20 @@ import org.springframework.data.jpa.repository.JpaRepository;
  *
  * @author Takuya Yamamoto
  */
-public interface StockItemRepository extends JpaRepository<StockItemEntity, Long> {
+public interface StockItemRepository extends JpaRepository<StockItemEntity, String> {
   /**
-   * 商品コードに紐づく在庫を利用可能在庫数降順で取得する。
+   * 商品コードに一致する有効な商品マスタを取得する。
    *
    * @param itemCode 商品コード
-   * @return 在庫一覧
+   * @return 商品マスタ
    */
-  List<StockItemEntity> findByItemCodeOrderByAvailableQuantityDesc(String itemCode);
+  Optional<StockItemEntity> findByItemCodeAndActiveFlagTrue(String itemCode);
 
   /**
-   * 商品コードと倉庫場所コードに一致する在庫を取得する。
+   * 商品コードに一致する有効な商品マスタが存在するか判定する。
    *
    * @param itemCode 商品コード
-   * @param warehouseLocationCode 倉庫場所コード
-   * @return 在庫
+   * @return 存在する場合 true
    */
-  Optional<StockItemEntity> findByItemCodeAndWarehouseLocationCode(
-      String itemCode, String warehouseLocationCode);
+  boolean existsByItemCodeAndActiveFlagTrue(String itemCode);
 }

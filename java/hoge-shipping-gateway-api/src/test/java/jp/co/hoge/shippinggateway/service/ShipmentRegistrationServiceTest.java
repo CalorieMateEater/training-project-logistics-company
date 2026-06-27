@@ -84,7 +84,18 @@ class ShipmentRegistrationServiceTest {
                 "RESERVED",
                 java.util.List.of(
                     new StockReservationResponse.ReservationResult(
-                        "ITM0000001", 1, 1, "WH-TYO-01", "RESERVED", 100, 1, 99))));
+                        "ITM0000001",
+                        1,
+                        1,
+                        "WH-TYO-01",
+                        "RESERVED",
+                        100,
+                        1,
+                        99,
+                        "StandardItemA",
+                        1000,
+                        "AMBIENT",
+                        "NORMAL"))));
     when(idFactory.orderId()).thenReturn("O-1");
     when(idFactory.shipmentRequestId()).thenReturn("SHP-1");
 
@@ -102,7 +113,14 @@ class ShipmentRegistrationServiceTest {
                 new ShipmentRegistrationRequest.DeliveryConstraint("AMBIENT", "EVENING"),
                 "1000001",
                 "Tokyo",
+                "Test User",
+                "0312345678",
+                1,
+                "PREPAID",
+                5000,
+                10,
                 LocalDate.of(2026, 6, 18),
+                "Handle with care",
                 releaseAt),
             "HOGE-DIRECT-PORTAL",
             "REQ-1",

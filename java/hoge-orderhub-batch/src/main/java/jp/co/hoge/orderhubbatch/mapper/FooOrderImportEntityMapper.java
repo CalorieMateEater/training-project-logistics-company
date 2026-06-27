@@ -40,6 +40,15 @@ public interface FooOrderImportEntityMapper {
   @Mapping(target = "carrierCode", source = "carrierCode")
   @Mapping(target = "deliveryZipCode", source = "zipCode")
   @Mapping(target = "deliveryAddress", source = "address")
+  @Mapping(target = "deliveryName", source = "deliveryName")
+  @Mapping(target = "deliveryPhone", source = "deliveryPhone")
+  @Mapping(target = "packageCount", source = "packageCount")
+  @Mapping(target = "paymentMethod", source = "paymentMethod")
+  @Mapping(target = "requestedDeliveryDate", source = "requestedDeliveryDate")
+  @Mapping(target = "specialInstruction", source = "specialInstruction")
+  @Mapping(target = "subtotalExcludingTax", source = "subtotalExcludingTax")
+  @Mapping(target = "taxAmount", source = "taxAmount")
+  @Mapping(target = "billingAmount", source = "billingAmount")
   @Mapping(target = "createdAt", source = "orderDatetime")
   @Mapping(target = "updatedAt", source = "now")
   OrderHeaderEntity toOrderHeader(FooOrderImportContext source);
@@ -51,7 +60,26 @@ public interface FooOrderImportEntityMapper {
    * @return 注文明細
    */
   @Mapping(target = "orderLineNo", constant = "1")
-  @Mapping(target = "itemName", constant = "FooOrderedItem")
+  @Mapping(
+      target = "itemName",
+      expression =
+          "java(source.reservationResponse().results().isEmpty() ? source.itemCode() : source.reservationResponse().results().get(0).itemName())")
+  @Mapping(target = "unitPriceExcludingTax", source = "unitPriceExcludingTax")
+  @Mapping(target = "taxRate", source = "taxRate")
+  @Mapping(target = "lineSubtotalExcludingTax", source = "subtotalExcludingTax")
+  @Mapping(target = "lineTaxAmount", source = "taxAmount")
+  @Mapping(
+      target = "unitWeightGramSnapshot",
+      expression =
+          "java(source.reservationResponse().results().isEmpty() ? 0 : source.reservationResponse().results().get(0).unitWeightGram())")
+  @Mapping(
+      target = "temperatureZoneSnapshot",
+      expression =
+          "java(source.reservationResponse().results().isEmpty() ? \"UNKNOWN\" : source.reservationResponse().results().get(0).temperatureZone())")
+  @Mapping(
+      target = "sizeTypeSnapshot",
+      expression =
+          "java(source.reservationResponse().results().isEmpty() ? \"UNKNOWN\" : source.reservationResponse().results().get(0).sizeType())")
   @Mapping(
       target = "sourceWarehouseLocationCode",
       expression =

@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Pattern;
 import jp.co.hoge.orderhub.common.domain.CarrierCode;
 import jp.co.hoge.orderhub.common.domain.InterfaceDirection;
 import jp.co.hoge.orderhub.common.domain.InterfaceStatus;
@@ -43,6 +45,9 @@ public class ShipmentRegistrationService {
 
   /** レスポンス日時フォーマッタ。 */
   private static final DateTimeFormatter ISO = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+
+  /** 配送先電話番号パターン。 */
+  private static final Pattern PHONE = Pattern.compile("^\\d{10,11}$");
 
   /** 注文ヘッダリポジトリ。 */
   private final OrderHeaderRepository orderHeaderRepository;
@@ -215,6 +220,48 @@ public class ShipmentRegistrationService {
         && request.shippingReleaseAt().isBefore(timeProvider.now())) {
       throw new ResponseStatusException(
           HttpStatus.UNPROCESSABLE_ENTITY, "shipping_release_at invalid");
+    }
+    if (request.quantity() < 1 || request.quantity() > 999) {
+      throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "quantity invalid");
+    }
+    if (request.deliveryName() == null
+        || request.deliveryName().isBlank()
+        || request.deliveryName().length() > 60) {
+      throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "delivery_name invalid");
+    }
+    if (request.deliveryPhone() == null || !PHONE.matcher(request.deliveryPhone()).matches()) {
+      throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "delivery_phone invalid");
+    }
+    if (request.packageCount() < 1
+        || request.packageCount() > 999
+        || request.packageCount() > request.quantity()) {
+      throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "package_count invalid");
+    }
+    if (!Set.of("PREPAID", "COD").contains(request.paymentMethod())) {
+      throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "payment_method invalid");
+    }
+    if (request.unitPriceExcludingTax() < 1 || request.unitPriceExcludingTax() > 9_999_999) {
+      throw new ResponseStatusException(
+          HttpStatus.UNPROCESSABLE_ENTITY, "unit_price_excluding_tax invalid");
+    }
+    if (request.taxRate() != 8 && request.taxRate() != 10) {
+      throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "tax_rate invalid");
+    }
+    int subtotal = request.unitPriceExcludingTax() * request.quantity();
+    int taxAmount = subtotal * request.taxRate() / 100;
+    int billingAmount = subtotal + taxAmount;
+    if (taxAmount > 999_999 || billingAmount > 9_999_999) {
+      throw new ResponseStatusException(
+          HttpStatus.UNPROCESSABLE_ENTITY, "billing_amount out of range");
+    }
+    if (request.requestedDeliveryDate() != null
+        && request.requestedDeliveryDate().isBefore(timeProvider.now().toLocalDate())) {
+      throw new ResponseStatusException(
+          HttpStatus.UNPROCESSABLE_ENTITY, "requested_delivery_date invalid");
+    }
+    if (request.specialInstruction() != null && request.specialInstruction().length() > 200) {
+      throw new ResponseStatusException(
+          HttpStatus.UNPROCESSABLE_ENTITY, "special_instruction invalid");
     }
   }
 

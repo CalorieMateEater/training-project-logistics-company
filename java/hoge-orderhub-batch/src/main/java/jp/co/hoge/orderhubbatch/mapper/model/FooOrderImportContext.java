@@ -1,5 +1,6 @@
 package jp.co.hoge.orderhubbatch.mapper.model;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import jp.co.hoge.orderhub.common.domain.CarrierCode;
 import jp.co.hoge.orderhub.common.domain.OrderStatus;
@@ -19,10 +20,21 @@ import jp.co.hoge.orderhub.common.dto.StockReservationResponse;
  * @param customerId 顧客 ID
  * @param itemCode 商品コード
  * @param quantity 数量
+ * @param unitPriceExcludingTax 税抜単価
+ * @param taxRate 消費税率
  * @param orderDatetime 注文日時
  * @param zipCode 郵便番号
  * @param address 配送先住所
+ * @param deliveryName 配送先氏名
+ * @param deliveryPhone 配送先電話番号
+ * @param packageCount 荷物個数
+ * @param paymentMethod 支払方法
+ * @param requestedDeliveryDate 配送希望日
+ * @param specialInstruction 特記事項
  * @param shippingReleaseAt 出荷解放日時
+ * @param subtotalExcludingTax 税抜小計
+ * @param taxAmount 消費税額
+ * @param billingAmount 税込請求金額
  * @param carrierCode 配送会社コード
  * @param orderStatus 注文ステータス
  * @param shippingPriorityClass 配送優先区分
@@ -45,10 +57,21 @@ public record FooOrderImportContext(
     String customerId,
     String itemCode,
     int quantity,
+    int unitPriceExcludingTax,
+    int taxRate,
     LocalDateTime orderDatetime,
     String zipCode,
     String address,
+    String deliveryName,
+    String deliveryPhone,
+    int packageCount,
+    String paymentMethod,
+    LocalDate requestedDeliveryDate,
+    String specialInstruction,
     LocalDateTime shippingReleaseAt,
+    int subtotalExcludingTax,
+    int taxAmount,
+    int billingAmount,
     CarrierCode carrierCode,
     OrderStatus orderStatus,
     ShippingPriorityClass shippingPriorityClass,

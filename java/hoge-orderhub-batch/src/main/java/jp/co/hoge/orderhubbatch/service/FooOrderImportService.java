@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +64,9 @@ public class FooOrderImportService {
 
   /** 7桁郵便番号パターン。 */
   private static final Pattern ZIP_7 = Pattern.compile("^\\d{7}$");
+
+  /** 電話番号パターン。 */
+  private static final Pattern PHONE = Pattern.compile("^\\d{10,11}$");
 
   /** 注文ヘッダリポジトリ。 */
   private final OrderHeaderRepository orderHeaderRepository;
@@ -144,7 +148,7 @@ public class FooOrderImportService {
    */
   protected void importRecord(String csvLine) {
     String[] columns = csvLine.split(",", -1);
-    if (columns.length != 10 && columns.length != 11) {
+    if (columns.length != 19) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid column count");
     }
 
@@ -158,13 +162,20 @@ public class FooOrderImportService {
     String customerId = columns[4];
     String itemCode = columns[5];
     int quantity = parseInt(columns[6], "quantity");
-    LocalDateTime orderDatetime = parseDateTime(columns[7], "order_datetime");
-    String zipCode = columns[8];
-    String address = columns[9];
+    int unitPriceExcludingTax = parseInt(columns[7], "unit_price_excluding_tax");
+    int taxRate = parseInt(columns[8], "tax_rate");
+    LocalDateTime orderDatetime = parseDateTime(columns[9], "order_datetime");
+    String zipCode = columns[10];
+    String address = columns[11];
+    String deliveryName = columns[12];
+    String deliveryPhone = columns[13];
+    int packageCount = parseInt(columns[14], "package_count");
+    String paymentMethod = columns[15];
+    LocalDate requestedDeliveryDate =
+        columns[16].isBlank() ? null : parseDate(columns[16], "requested_delivery_date");
+    String specialInstruction = columns[17];
     LocalDateTime shippingReleaseAt =
-        columns.length == 11 && !columns[10].isBlank()
-            ? parseDateTime(columns[10], "shipping_release_at")
-            : null;
+        !columns[18].isBlank() ? parseDateTime(columns[18], "shipping_release_at") : null;
 
     try (var requestScope = MdcUtils.withEntries(Map.of("requestKey", partnerOrderId))) {
       log.info("APP_BATCH_RECORD_START function=fooOrderImport partnerOrderId={}", partnerOrderId);
@@ -176,9 +187,17 @@ public class FooOrderImportService {
           customerId,
           itemCode,
           quantity,
+          unitPriceExcludingTax,
+          taxRate,
           orderDatetime,
           zipCode,
           address,
+          deliveryName,
+          deliveryPhone,
+          packageCount,
+          paymentMethod,
+          requestedDeliveryDate,
+          specialInstruction,
           shippingReleaseAt);
 
       if (orderHeaderRepository.findByPartnerOrderId(partnerOrderId).isPresent()) {
@@ -201,6 +220,10 @@ public class FooOrderImportService {
               new StockReservationRequest(
                   orderId,
                   List.of(new StockReservationRequest.ReservationItem(itemCode, quantity))));
+      int subtotalExcludingTax = unitPriceExcludingTax * quantity;
+      int taxAmount = subtotalExcludingTax * taxRate / 100;
+      int billingAmount = subtotalExcludingTax + taxAmount;
+      validateBillingAmount(taxAmount, billingAmount);
 
       LocalDateTime now = timeProvider.now();
       CarrierCode carrierCode = determineCarrier(reservationResponse);
@@ -226,10 +249,21 @@ public class FooOrderImportService {
               customerId,
               itemCode,
               quantity,
+              unitPriceExcludingTax,
+              taxRate,
               orderDatetime,
               zipCode,
               address,
+              deliveryName,
+              deliveryPhone,
+              packageCount,
+              paymentMethod,
+              requestedDeliveryDate,
+              specialInstruction,
               shippingReleaseAt,
+              subtotalExcludingTax,
+              taxAmount,
+              billingAmount,
               carrierCode,
               orderStatus,
               priorityResolver.resolveFooPriority(orderType, priorityLevel),
@@ -288,9 +322,17 @@ public class FooOrderImportService {
       String customerId,
       String itemCode,
       int quantity,
+      int unitPriceExcludingTax,
+      int taxRate,
       LocalDateTime orderDatetime,
       String zipCode,
       String address,
+      String deliveryName,
+      String deliveryPhone,
+      int packageCount,
+      String paymentMethod,
+      LocalDate requestedDeliveryDate,
+      String specialInstruction,
       LocalDateTime shippingReleaseAt) {
     if (!ALNUM_14.matcher(partnerOrderId).matches()) {
       throw new ResponseStatusException(
@@ -323,6 +365,13 @@ public class FooOrderImportService {
     if (quantity < 1 || quantity > 999) {
       throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "quantity invalid");
     }
+    if (unitPriceExcludingTax < 1 || unitPriceExcludingTax > 9_999_999) {
+      throw new ResponseStatusException(
+          HttpStatus.UNPROCESSABLE_ENTITY, "unit_price_excluding_tax invalid");
+    }
+    if (taxRate != 8 && taxRate != 10) {
+      throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "tax_rate invalid");
+    }
     if (!ZIP_7.matcher(zipCode).matches()) {
       throw new ResponseStatusException(
           HttpStatus.UNPROCESSABLE_ENTITY, "delivery_zip_code invalid");
@@ -330,6 +379,27 @@ public class FooOrderImportService {
     if (address.isBlank() || address.length() > 200) {
       throw new ResponseStatusException(
           HttpStatus.UNPROCESSABLE_ENTITY, "delivery_address invalid");
+    }
+    if (deliveryName.isBlank() || deliveryName.length() > 60) {
+      throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "delivery_name invalid");
+    }
+    if (!PHONE.matcher(deliveryPhone).matches()) {
+      throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "delivery_phone invalid");
+    }
+    if (packageCount < 1 || packageCount > 999 || packageCount > quantity) {
+      throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "package_count invalid");
+    }
+    if (!List.of("PREPAID", "COD").contains(paymentMethod)) {
+      throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "payment_method invalid");
+    }
+    if (requestedDeliveryDate != null
+        && requestedDeliveryDate.isBefore(orderDatetime.toLocalDate())) {
+      throw new ResponseStatusException(
+          HttpStatus.UNPROCESSABLE_ENTITY, "requested_delivery_date invalid");
+    }
+    if (specialInstruction.length() > 200) {
+      throw new ResponseStatusException(
+          HttpStatus.UNPROCESSABLE_ENTITY, "special_instruction invalid");
     }
   }
 
@@ -346,6 +416,21 @@ public class FooOrderImportService {
       return LocalDateTime.parse(rawValue);
     } catch (Exception exception) {
       throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, fieldName + " invalid");
+    }
+  }
+
+  private LocalDate parseDate(String rawValue, String fieldName) {
+    try {
+      return LocalDate.parse(rawValue);
+    } catch (Exception exception) {
+      throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, fieldName + " invalid");
+    }
+  }
+
+  private void validateBillingAmount(int taxAmount, int billingAmount) {
+    if (taxAmount < 0 || taxAmount > 999_999 || billingAmount < 1 || billingAmount > 9_999_999) {
+      throw new ResponseStatusException(
+          HttpStatus.UNPROCESSABLE_ENTITY, "billing_amount out of range");
     }
   }
 

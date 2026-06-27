@@ -97,6 +97,15 @@ class ShipmentStatusQueryServiceTest {
     order.setCarrierCode(CarrierCode.BAR);
     order.setDeliveryZipCode("1000001");
     order.setDeliveryAddress("Tokyo");
+    order.setDeliveryName("Test User");
+    order.setDeliveryPhone("0312345678");
+    order.setPackageCount(1);
+    order.setPaymentMethod("PREPAID");
+    order.setRequestedDeliveryDate(java.time.LocalDate.of(2026, 6, 18));
+    order.setSpecialInstruction("Handle with care");
+    order.setSubtotalExcludingTax(5000);
+    order.setTaxAmount(500);
+    order.setBillingAmount(5500);
     order.setCreatedAt(LocalDateTime.now());
     order.setUpdatedAt(LocalDateTime.now());
     return order;

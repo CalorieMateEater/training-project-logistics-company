@@ -94,6 +94,7 @@ class ShipmentDispatchWorkerServiceTest {
     orderHeader.setShipmentStatus(OrderStatus.WAITING_BAR_REQUEST);
     orderHeader.setDeliveryZipCode("1000001");
     orderHeader.setDeliveryAddress("Tokyo");
+    applyOrderSnapshot(orderHeader);
     orderHeader.setUpdatedAt(now);
 
     OrderLineEntity line = new OrderLineEntity();
@@ -102,6 +103,7 @@ class ShipmentDispatchWorkerServiceTest {
     line.setItemCode("ITM0000001");
     line.setItemName("FooOrderedItem");
     line.setQuantity(1);
+    applyLineSnapshot(line);
 
     when(orderHeaderRepository.findById("O-1")).thenReturn(Optional.of(orderHeader));
     when(orderLineRepository.findByOrderIdOrderByOrderLineNo("O-1")).thenReturn(List.of(line));
@@ -148,6 +150,7 @@ class ShipmentDispatchWorkerServiceTest {
     orderHeader.setShipmentStatus(OrderStatus.WAITING_BAR_REQUEST);
     orderHeader.setDeliveryZipCode("1000001");
     orderHeader.setDeliveryAddress("Tokyo");
+    applyOrderSnapshot(orderHeader);
     orderHeader.setUpdatedAt(now);
 
     OrderLineEntity line = new OrderLineEntity();
@@ -156,6 +159,7 @@ class ShipmentDispatchWorkerServiceTest {
     line.setItemCode("ITM0000002");
     line.setItemName("FooOrderedItem");
     line.setQuantity(1);
+    applyLineSnapshot(line);
 
     when(orderHeaderRepository.findById("O-2")).thenReturn(Optional.of(orderHeader));
     when(orderLineRepository.findByOrderIdOrderByOrderLineNo("O-2")).thenReturn(List.of(line));
@@ -188,5 +192,27 @@ class ShipmentDispatchWorkerServiceTest {
             "SHP-2",
             "500",
             "bar request failed: timeout");
+  }
+
+  private void applyOrderSnapshot(OrderHeaderEntity orderHeader) {
+    orderHeader.setDeliveryName("Test User");
+    orderHeader.setDeliveryPhone("0312345678");
+    orderHeader.setPackageCount(1);
+    orderHeader.setPaymentMethod("PREPAID");
+    orderHeader.setRequestedDeliveryDate(java.time.LocalDate.of(2026, 6, 18));
+    orderHeader.setSpecialInstruction("Handle with care");
+    orderHeader.setSubtotalExcludingTax(5000);
+    orderHeader.setTaxAmount(500);
+    orderHeader.setBillingAmount(5500);
+  }
+
+  private void applyLineSnapshot(OrderLineEntity line) {
+    line.setUnitPriceExcludingTax(5000);
+    line.setTaxRate(10);
+    line.setLineSubtotalExcludingTax(5000);
+    line.setLineTaxAmount(500);
+    line.setUnitWeightGramSnapshot(1000);
+    line.setTemperatureZoneSnapshot("AMBIENT");
+    line.setSizeTypeSnapshot("NORMAL");
   }
 }

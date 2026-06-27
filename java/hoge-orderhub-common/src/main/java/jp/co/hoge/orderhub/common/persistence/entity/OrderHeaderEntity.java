@@ -6,6 +6,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import jp.co.hoge.orderhub.common.domain.CarrierCode;
 import jp.co.hoge.orderhub.common.domain.OrderSource;
@@ -74,6 +75,42 @@ public class OrderHeaderEntity {
   /** 配送先住所。 */
   @Column(name = "delivery_address", nullable = false, length = 256)
   private String deliveryAddress;
+
+  /** 配送先氏名。 */
+  @Column(name = "delivery_name", nullable = false, length = 60)
+  private String deliveryName;
+
+  /** 配送先電話番号。 */
+  @Column(name = "delivery_phone", nullable = false, length = 16)
+  private String deliveryPhone;
+
+  /** 荷物個数。 */
+  @Column(name = "package_count", nullable = false)
+  private int packageCount;
+
+  /** 支払方法。 */
+  @Column(name = "payment_method", nullable = false, length = 16)
+  private String paymentMethod;
+
+  /** 配送希望日。 */
+  @Column(name = "requested_delivery_date")
+  private LocalDate requestedDeliveryDate;
+
+  /** 特記事項。 */
+  @Column(name = "special_instruction", length = 200)
+  private String specialInstruction;
+
+  /** 税抜小計。 */
+  @Column(name = "subtotal_excluding_tax", nullable = false)
+  private int subtotalExcludingTax;
+
+  /** 消費税額。 */
+  @Column(name = "tax_amount", nullable = false)
+  private int taxAmount;
+
+  /** 税込請求金額。 */
+  @Column(name = "billing_amount", nullable = false)
+  private int billingAmount;
 
   /** 出荷解放日時。 */
   @Column(name = "shipping_release_at")
@@ -301,6 +338,168 @@ public class OrderHeaderEntity {
    */
   public void setDeliveryAddress(String deliveryAddress) {
     this.deliveryAddress = deliveryAddress;
+  }
+
+  /**
+   * 配送先氏名を返却する。
+   *
+   * @return 配送先氏名
+   */
+  public String getDeliveryName() {
+    return deliveryName;
+  }
+
+  /**
+   * 配送先氏名を設定する。
+   *
+   * @param deliveryName 配送先氏名
+   */
+  public void setDeliveryName(String deliveryName) {
+    this.deliveryName = deliveryName;
+  }
+
+  /**
+   * 配送先電話番号を返却する。
+   *
+   * @return 配送先電話番号
+   */
+  public String getDeliveryPhone() {
+    return deliveryPhone;
+  }
+
+  /**
+   * 配送先電話番号を設定する。
+   *
+   * @param deliveryPhone 配送先電話番号
+   */
+  public void setDeliveryPhone(String deliveryPhone) {
+    this.deliveryPhone = deliveryPhone;
+  }
+
+  /**
+   * 荷物個数を返却する。
+   *
+   * @return 荷物個数
+   */
+  public int getPackageCount() {
+    return packageCount;
+  }
+
+  /**
+   * 荷物個数を設定する。
+   *
+   * @param packageCount 荷物個数
+   */
+  public void setPackageCount(int packageCount) {
+    this.packageCount = packageCount;
+  }
+
+  /**
+   * 支払方法を返却する。
+   *
+   * @return 支払方法
+   */
+  public String getPaymentMethod() {
+    return paymentMethod;
+  }
+
+  /**
+   * 支払方法を設定する。
+   *
+   * @param paymentMethod 支払方法
+   */
+  public void setPaymentMethod(String paymentMethod) {
+    this.paymentMethod = paymentMethod;
+  }
+
+  /**
+   * 配送希望日を返却する。
+   *
+   * @return 配送希望日
+   */
+  public LocalDate getRequestedDeliveryDate() {
+    return requestedDeliveryDate;
+  }
+
+  /**
+   * 配送希望日を設定する。
+   *
+   * @param requestedDeliveryDate 配送希望日
+   */
+  public void setRequestedDeliveryDate(LocalDate requestedDeliveryDate) {
+    this.requestedDeliveryDate = requestedDeliveryDate;
+  }
+
+  /**
+   * 特記事項を返却する。
+   *
+   * @return 特記事項
+   */
+  public String getSpecialInstruction() {
+    return specialInstruction;
+  }
+
+  /**
+   * 特記事項を設定する。
+   *
+   * @param specialInstruction 特記事項
+   */
+  public void setSpecialInstruction(String specialInstruction) {
+    this.specialInstruction = specialInstruction;
+  }
+
+  /**
+   * 税抜小計を返却する。
+   *
+   * @return 税抜小計
+   */
+  public int getSubtotalExcludingTax() {
+    return subtotalExcludingTax;
+  }
+
+  /**
+   * 税抜小計を設定する。
+   *
+   * @param subtotalExcludingTax 税抜小計
+   */
+  public void setSubtotalExcludingTax(int subtotalExcludingTax) {
+    this.subtotalExcludingTax = subtotalExcludingTax;
+  }
+
+  /**
+   * 消費税額を返却する。
+   *
+   * @return 消費税額
+   */
+  public int getTaxAmount() {
+    return taxAmount;
+  }
+
+  /**
+   * 消費税額を設定する。
+   *
+   * @param taxAmount 消費税額
+   */
+  public void setTaxAmount(int taxAmount) {
+    this.taxAmount = taxAmount;
+  }
+
+  /**
+   * 税込請求金額を返却する。
+   *
+   * @return 税込請求金額
+   */
+  public int getBillingAmount() {
+    return billingAmount;
+  }
+
+  /**
+   * 税込請求金額を設定する。
+   *
+   * @param billingAmount 税込請求金額
+   */
+  public void setBillingAmount(int billingAmount) {
+    this.billingAmount = billingAmount;
   }
 
   /**
