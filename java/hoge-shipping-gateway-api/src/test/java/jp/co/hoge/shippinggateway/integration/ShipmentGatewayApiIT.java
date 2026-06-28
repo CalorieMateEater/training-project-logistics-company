@@ -24,6 +24,7 @@ import jp.co.hoge.orderhub.common.persistence.repository.DeliveryStatusCurrentRe
 import jp.co.hoge.orderhub.common.persistence.repository.OrderHeaderRepository;
 import jp.co.hoge.orderhub.common.persistence.repository.ShipmentRequestRepository;
 import jp.co.hoge.shippinggateway.ShippingGatewayApplication;
+import jp.co.hoge.shippinggateway.service.BarDeliveryResultService;
 import jp.co.hoge.shippinggateway.service.CustomerRegistryClient;
 import jp.co.hoge.shippinggateway.service.StockKeeperClient;
 import org.junit.jupiter.api.Test;
@@ -46,6 +47,8 @@ class ShipmentGatewayApiIT {
   @Autowired private ShipmentRequestRepository shipmentRequestRepository;
 
   @Autowired private DeliveryStatusCurrentRepository deliveryStatusCurrentRepository;
+
+  @Autowired private BarDeliveryResultService barDeliveryResultService;
 
   @MockBean private CustomerRegistryClient customerRegistryClient;
 
@@ -221,22 +224,24 @@ class ShipmentGatewayApiIT {
                 .content(
                     """
                                 {
-                                  "barShipmentId": "BARS202606170011",
-                                  "orderId": "O202606170011",
-                                  "partnerOrderId": "FO202606170011",
-                                  "statusSeq": 1,
-                                  "deliveryStatus": "PREPARING",
-                                  "statusLabel": "Preparing",
-                                  "eventOccurredAt": "2026-06-17T10:00:00",
-                                  "locationCode": "TKY-CHY",
-                                  "reasonCode": null,
-                                  "reasonCategory": "ADDRESS_CORRECTED",
-                                  "addressCorrected": true,
-                                  "addressCorrectionLevel": "MINOR",
-                                  "driverComment": null
+                                  "bar_shipment_id": "BARS202606170011",
+                                  "order_id": "O202606170011",
+                                  "partner_order_id": "FO202606170011",
+                                  "status_seq": 1,
+                                  "delivery_status": "PREPARING",
+                                  "status_label": "Preparing",
+                                  "event_occurred_at": "2026-06-17T10:00:00",
+                                  "location_code": "TKY-CHY",
+                                  "reason_code": null,
+                                  "reason_category": "ADDRESS_CORRECTED",
+                                  "address_corrected": true,
+                                  "address_correction_level": "MINOR",
+                                  "driver_comment": null
                                 }
                                 """))
         .andExpect(status().isAccepted());
+
+    barDeliveryResultService.processPendingReflectionRequests();
 
     mockMvc
         .perform(
@@ -245,6 +250,124 @@ class ShipmentGatewayApiIT {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.latestEvent.reasonCategory").value("ADDRESS_CORRECTED"))
         .andExpect(jsonPath("$.latestEvent.displayStatusName").value("住所補正対応中"));
+  }
+
+  @Test
+  void shouldAcceptFugaDeliveryResultApi() throws Exception {
+    OrderHeaderEntity order = new OrderHeaderEntity();
+    order.setOrderId("O202606170013");
+    order.setPartnerOrderId("HO202606170013");
+    order.setPartnerRequestId("FG202606170013");
+    order.setOrderSource(OrderSource.HOGE);
+    order.setPartnerPriorityLevel(0);
+    order.setShippingPriorityClass(ShippingPriorityClass.NORMAL);
+    order.setCustomerId("C00000000001");
+    order.setOrderStatus(OrderStatus.FUGA_ACCEPTED);
+    order.setShipmentStatus(OrderStatus.FUGA_ACCEPTED);
+    order.setCarrierCode(CarrierCode.FUGA);
+    order.setDeliveryZipCode("1000001");
+    order.setDeliveryAddress("Tokyo");
+    applyOrderSnapshot(order);
+    order.setCreatedAt(LocalDateTime.now());
+    order.setUpdatedAt(LocalDateTime.now());
+    orderHeaderRepository.save(order);
+
+    ShipmentRequestEntity request = new ShipmentRequestEntity();
+    request.setShipmentRequestId("SHP-13");
+    request.setOrderId(order.getOrderId());
+    request.setCarrierCode(CarrierCode.FUGA);
+    request.setOrderSource(OrderSource.HOGE);
+    request.setPartnerPriorityLevel(0);
+    request.setShippingPriorityClass(ShippingPriorityClass.NORMAL);
+    request.setShipmentRequestStatus(ShipmentRequestStatus.ACCEPTED);
+    request.setQueueEnqueuedAt(LocalDateTime.now());
+    request.setNextRequestAfter(LocalDateTime.now());
+    shipmentRequestRepository.save(request);
+
+    mockMvc
+        .perform(
+            post("/api/v1/delivery-results/fuga")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                                {
+                                  "fuga_shipment_id": "FGS202606170013",
+                                  "order_id": "O202606170013",
+                                  "partner_order_id": "HO202606170013",
+                                  "status_seq": 3,
+                                  "delivery_status": "IN_TRANSIT",
+                                  "status_label": "配送中",
+                                  "event_occurred_at": "2026-06-17T12:00:00",
+                                  "temperature_zone": "COOL",
+                                  "size_type": "LARGE",
+                                  "reason_code": null,
+                                  "reason_category": null
+                                }
+                                """))
+        .andExpect(status().isAccepted());
+
+    barDeliveryResultService.processPendingReflectionRequests();
+
+    mockMvc
+        .perform(
+            get("/api/v1/shipment-status/FG202606170013")
+                .header("X-Client-System-Id", "HOGE-DIRECT-PORTAL"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.deliveryCompanyCode").value("FUGA"))
+        .andExpect(jsonPath("$.currentStatus").value("IN_TRANSIT"));
+  }
+
+  @Test
+  void shouldRejectOldFugaDeliveryResultApi() throws Exception {
+    OrderHeaderEntity order = new OrderHeaderEntity();
+    order.setOrderId("O202606170014");
+    order.setPartnerOrderId("HO202606170014");
+    order.setPartnerRequestId("FG202606170014");
+    order.setOrderSource(OrderSource.HOGE);
+    order.setPartnerPriorityLevel(0);
+    order.setShippingPriorityClass(ShippingPriorityClass.NORMAL);
+    order.setCustomerId("C00000000001");
+    order.setOrderStatus(OrderStatus.IN_DELIVERY_FLOW);
+    order.setShipmentStatus(OrderStatus.IN_DELIVERY_FLOW);
+    order.setCarrierCode(CarrierCode.FUGA);
+    order.setDeliveryZipCode("1000001");
+    order.setDeliveryAddress("Tokyo");
+    applyOrderSnapshot(order);
+    order.setCreatedAt(LocalDateTime.now());
+    order.setUpdatedAt(LocalDateTime.now());
+    orderHeaderRepository.save(order);
+
+    DeliveryStatusCurrentEntity current = new DeliveryStatusCurrentEntity();
+    current.setOrderId(order.getOrderId());
+    current.setLatestStatusCode("IN_TRANSIT");
+    current.setLatestStatusName("配送中");
+    current.setLatestDisplayStatusName("配送中");
+    current.setLatestStatusSeq(3);
+    current.setLatestStatusAt(LocalDateTime.now());
+    current.setLastReceivedAt(LocalDateTime.now());
+    deliveryStatusCurrentRepository.save(current);
+
+    mockMvc
+        .perform(
+            post("/api/v1/delivery-results/fuga")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                                {
+                                  "fuga_shipment_id": "FGS202606170014",
+                                  "order_id": "O202606170014",
+                                  "partner_order_id": "HO202606170014",
+                                  "status_seq": 2,
+                                  "delivery_status": "PREPARING",
+                                  "status_label": "配送準備中",
+                                  "event_occurred_at": "2026-06-17T11:00:00",
+                                  "temperature_zone": "COOL",
+                                  "size_type": "LARGE",
+                                  "reason_code": null,
+                                  "reason_category": null
+                                }
+                                """))
+        .andExpect(status().isConflict());
   }
 
   @Test

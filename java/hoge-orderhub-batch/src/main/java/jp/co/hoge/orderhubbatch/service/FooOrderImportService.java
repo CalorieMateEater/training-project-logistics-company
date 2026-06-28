@@ -18,6 +18,7 @@ import jp.co.hoge.orderhub.common.domain.ShipmentRequestStatus;
 import jp.co.hoge.orderhub.common.dto.CustomerStatusResponse;
 import jp.co.hoge.orderhub.common.dto.StockReservationRequest;
 import jp.co.hoge.orderhub.common.dto.StockReservationResponse;
+import jp.co.hoge.orderhub.common.integration.SqsMessageGateway;
 import jp.co.hoge.orderhub.common.logging.MdcUtils;
 import jp.co.hoge.orderhub.common.persistence.entity.CustomerCheckResultEntity;
 import jp.co.hoge.orderhub.common.persistence.entity.NotificationHistoryEntity;
@@ -106,6 +107,9 @@ public class FooOrderImportService {
 
   /** 現在時刻提供サービス。 */
   private final TimeProvider timeProvider;
+
+  /** SQS送信ゲートウェイ。 */
+  private final SqsMessageGateway sqsMessageGateway;
 
   /** 取込エンティティマッパー。 */
   private final FooOrderImportEntityMapper fooOrderImportEntityMapper;
@@ -229,7 +233,11 @@ public class FooOrderImportService {
       CarrierCode carrierCode = determineCarrier(reservationResponse);
       boolean waitingRelease = isWaitingRelease(shippingReleaseAt, now);
       OrderStatus orderStatus =
-          waitingRelease ? OrderStatus.WAITING_SHIPPING_RELEASE : OrderStatus.WAITING_BAR_REQUEST;
+          waitingRelease
+              ? OrderStatus.WAITING_SHIPPING_RELEASE
+              : carrierCode == CarrierCode.FUGA
+                  ? OrderStatus.WAITING_FUGA_REQUEST
+                  : OrderStatus.WAITING_BAR_REQUEST;
       ShipmentRequestStatus shipmentRequestStatus =
           waitingRelease
               ? ShipmentRequestStatus.PENDING
@@ -296,6 +304,11 @@ public class FooOrderImportService {
 
       ShipmentRequestEntity shipmentRequest = fooOrderImportEntityMapper.toShipmentRequest(context);
       shipmentRequestRepository.save(shipmentRequest);
+      sqsMessageGateway.send(
+          shipmentQueueName(carrierCode),
+          orderId,
+          shipmentRequest.getShipmentRequestId(),
+          shipmentRequest.getShipmentRequestId());
 
       NotificationHistoryEntity notification =
           fooOrderImportEntityMapper.toFooAckNotification(context);
@@ -454,5 +467,11 @@ public class FooOrderImportService {
       return "RULE-FUGA-WAREHOUSE";
     }
     return "RULE-BAR-FOO";
+  }
+
+  private String shipmentQueueName(CarrierCode carrierCode) {
+    return carrierCode == CarrierCode.FUGA
+        ? "fuga-shipment-request-queue.fifo"
+        : "bar-shipment-request-queue.fifo";
   }
 }

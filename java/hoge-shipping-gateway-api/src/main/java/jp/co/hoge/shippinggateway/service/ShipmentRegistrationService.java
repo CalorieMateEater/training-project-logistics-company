@@ -16,6 +16,7 @@ import jp.co.hoge.orderhub.common.dto.ShipmentRegistrationAcceptedResponse;
 import jp.co.hoge.orderhub.common.dto.ShipmentRegistrationRequest;
 import jp.co.hoge.orderhub.common.dto.StockReservationRequest;
 import jp.co.hoge.orderhub.common.dto.StockReservationResponse;
+import jp.co.hoge.orderhub.common.integration.SqsMessageGateway;
 import jp.co.hoge.orderhub.common.persistence.repository.CustomerCheckResultRepository;
 import jp.co.hoge.orderhub.common.persistence.repository.OrderHeaderRepository;
 import jp.co.hoge.orderhub.common.persistence.repository.OrderLineRepository;
@@ -81,6 +82,9 @@ public class ShipmentRegistrationService {
 
   /** 現在時刻提供サービス。 */
   private final TimeProvider timeProvider;
+
+  /** SQS送信ゲートウェイ。 */
+  private final SqsMessageGateway sqsMessageGateway;
 
   /** 永続化用エンティティマッパー。 */
   private final ShipmentGatewayEntityMapper shipmentGatewayEntityMapper;
@@ -154,7 +158,11 @@ public class ShipmentRegistrationService {
     LocalDateTime now = timeProvider.now();
     boolean waitingRelease = isWaitingRelease(request.shippingReleaseAt(), now);
     OrderStatus orderStatus =
-        waitingRelease ? OrderStatus.WAITING_SHIPPING_RELEASE : OrderStatus.WAITING_BAR_REQUEST;
+        waitingRelease
+            ? OrderStatus.WAITING_SHIPPING_RELEASE
+            : carrierCode == CarrierCode.FUGA
+                ? OrderStatus.WAITING_FUGA_REQUEST
+                : OrderStatus.WAITING_BAR_REQUEST;
     ShipmentRequestStatus shipmentRequestStatus =
         waitingRelease
             ? ShipmentRequestStatus.PENDING
@@ -187,7 +195,13 @@ public class ShipmentRegistrationService {
     customerCheckResultRepository.save(shipmentGatewayEntityMapper.toCustomerCheckResult(context));
     stockReservationResultRepository.save(
         shipmentGatewayEntityMapper.toStockReservationResult(context));
-    shipmentRequestRepository.save(shipmentGatewayEntityMapper.toShipmentRequest(context));
+    var shipmentRequest = shipmentGatewayEntityMapper.toShipmentRequest(context);
+    shipmentRequestRepository.save(shipmentRequest);
+    sqsMessageGateway.send(
+        shipmentQueueName(carrierCode),
+        orderId,
+        shipmentRequest.getShipmentRequestId(),
+        shipmentRequest.getShipmentRequestId());
 
     interfaceHistoryService.record(
         "IF-HOGE-OPS-002",
@@ -288,5 +302,11 @@ public class ShipmentRegistrationService {
       return "RULE-FUGA-SPECIAL";
     }
     return "RULE-BAR-DEFAULT";
+  }
+
+  private String shipmentQueueName(CarrierCode carrierCode) {
+    return carrierCode == CarrierCode.FUGA
+        ? "fuga-shipment-request-queue.fifo"
+        : "bar-shipment-request-queue.fifo";
   }
 }

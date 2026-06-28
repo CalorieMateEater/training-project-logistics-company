@@ -14,6 +14,7 @@ import jp.co.hoge.orderhub.common.domain.OrderStatus;
 import jp.co.hoge.orderhub.common.domain.ShipmentRequestStatus;
 import jp.co.hoge.orderhub.common.domain.ShippingPriorityClass;
 import jp.co.hoge.orderhub.common.dto.BarShipmentAcceptedResponse;
+import jp.co.hoge.orderhub.common.integration.SqsMessageGateway;
 import jp.co.hoge.orderhub.common.mapper.NotificationHistoryEntityMapper;
 import jp.co.hoge.orderhub.common.persistence.entity.OrderHeaderEntity;
 import jp.co.hoge.orderhub.common.persistence.entity.OrderLineEntity;
@@ -48,6 +49,7 @@ class ShipmentDispatchWorkerServiceTest {
   @Mock private InterfaceHistoryService interfaceHistoryService;
   @Mock private BusinessHoursService businessHoursService;
   @Mock private IdFactory idFactory;
+  @Mock private SqsMessageGateway sqsMessageGateway;
   @Captor private ArgumentCaptor<ShipmentRequestEntity> shipmentRequestCaptor;
 
   private ShipmentDispatchWorkerService shipmentDispatchWorkerService;
@@ -69,6 +71,7 @@ class ShipmentDispatchWorkerServiceTest {
             businessHoursService,
             idFactory,
             timeProvider,
+            sqsMessageGateway,
             Mappers.getMapper(ShipmentDispatchMapper.class),
             Mappers.getMapper(NotificationHistoryEntityMapper.class));
   }

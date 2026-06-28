@@ -4,6 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Shipping Gateway API アプリケーションの起動クラス。
@@ -14,6 +15,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
     scanBasePackages = {"jp.co.hoge.shippinggateway", "jp.co.hoge.orderhub.common"})
 @EntityScan(basePackages = "jp.co.hoge.orderhub.common.persistence.entity")
 @EnableJpaRepositories(basePackages = "jp.co.hoge.orderhub.common.persistence.repository")
+@EnableScheduling
 public class ShippingGatewayApplication {
   /**
    * アプリケーションを起動する。

@@ -5,6 +5,7 @@ import jp.co.hoge.orderhub.common.dto.StockReceiptRequest;
 import jp.co.hoge.orderhub.common.dto.StockReceiptResponse;
 import jp.co.hoge.orderhub.common.dto.WarehouseStockResponse;
 import jp.co.hoge.stockkeeper.service.StockReceiptService;
+import jp.co.hoge.stockkeeper.service.WarehouseEmployeeResolver;
 import jp.co.hoge.stockkeeper.service.WarehouseInventoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -32,10 +33,13 @@ public class WarehouseStockController {
   /** 入庫登録サービス。 */
   private final StockReceiptService stockReceiptService;
 
+  /** OIDC社員ID解決サービス。 */
+  private final WarehouseEmployeeResolver warehouseEmployeeResolver;
+
   /**
    * 倉庫担当者の担当倉庫場所に対する在庫を照会する。
    *
-   * @param employeeId 従業員 ID
+   * @param authorization OIDCアクセストークン
    * @param traceId トレース ID
    * @param warehouseLocationCode 倉庫場所コード
    * @param itemCode 商品コード
@@ -43,10 +47,11 @@ public class WarehouseStockController {
    */
   @GetMapping("/inventories")
   public WarehouseStockResponse searchWarehouseStocks(
-      @RequestHeader("X-Employee-Id") String employeeId,
+      @RequestHeader(value = "Authorization", required = false) String authorization,
       @RequestHeader(value = "X-Trace-Id", required = false) String traceId,
       @RequestParam("warehouse_location_code") String warehouseLocationCode,
       @RequestParam(value = "item_code", required = false) String itemCode) {
+    String employeeId = warehouseEmployeeResolver.resolveEmployeeId(authorization);
     return warehouseInventoryService.searchWarehouseStocks(
         employeeId, warehouseLocationCode, itemCode, traceId);
   }
@@ -54,16 +59,17 @@ public class WarehouseStockController {
   /**
    * 倉庫担当者が実入庫を登録する。
    *
-   * @param employeeId 従業員 ID
+   * @param authorization OIDCアクセストークン
    * @param traceId トレース ID
    * @param request 入庫登録リクエスト
    * @return 入庫登録レスポンス
    */
   @PostMapping("/receipts")
   public ResponseEntity<StockReceiptResponse> registerStockReceipt(
-      @RequestHeader("X-Employee-Id") String employeeId,
+      @RequestHeader(value = "Authorization", required = false) String authorization,
       @RequestHeader(value = "X-Trace-Id", required = false) String traceId,
       @Valid @RequestBody StockReceiptRequest request) {
+    String employeeId = warehouseEmployeeResolver.resolveEmployeeId(authorization);
     StockReceiptService.RegistrationResult result =
         stockReceiptService.registerStockReceipt(request, employeeId, traceId);
     return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)

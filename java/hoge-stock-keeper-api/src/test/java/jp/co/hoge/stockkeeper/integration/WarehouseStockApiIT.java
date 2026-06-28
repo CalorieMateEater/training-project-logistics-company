@@ -25,7 +25,7 @@ class WarehouseStockApiIT {
     mockMvc
         .perform(
             get("/api/v1/stocks/inventories")
-                .header("X-Employee-Id", "EMP-WH-TYO-001")
+                .header("Authorization", "Bearer employee:EMP-WH-TYO-001")
                 .param("warehouse_location_code", "WH-TYO-01"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.warehouseLocationCode").value("WH-TYO-01"))
@@ -37,7 +37,7 @@ class WarehouseStockApiIT {
     mockMvc
         .perform(
             get("/api/v1/stocks/inventories")
-                .header("X-Employee-Id", "EMP-WH-TYO-001")
+                .header("Authorization", "Bearer employee:EMP-WH-TYO-001")
                 .param("warehouse_location_code", "WH-OSA-01"))
         .andExpect(status().isForbidden());
   }
@@ -47,7 +47,7 @@ class WarehouseStockApiIT {
     mockMvc
         .perform(
             post("/api/v1/stocks/receipts")
-                .header("X-Employee-Id", "EMP-WH-TYO-001")
+                .header("Authorization", "Bearer employee:EMP-WH-TYO-001")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
@@ -81,7 +81,7 @@ class WarehouseStockApiIT {
     mockMvc
         .perform(
             post("/api/v1/stocks/receipts")
-                .header("X-Employee-Id", "EMP-WH-TYO-001")
+                .header("Authorization", "Bearer employee:EMP-WH-TYO-001")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
         .andExpect(status().isCreated());
@@ -89,7 +89,7 @@ class WarehouseStockApiIT {
     mockMvc
         .perform(
             post("/api/v1/stocks/receipts")
-                .header("X-Employee-Id", "EMP-WH-TYO-001")
+                .header("Authorization", "Bearer employee:EMP-WH-TYO-001")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
         .andExpect(status().isOk())

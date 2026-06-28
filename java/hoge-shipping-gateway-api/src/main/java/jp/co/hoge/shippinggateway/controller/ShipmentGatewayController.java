@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 出荷依頼受付、出荷状態照会、Bar社配送結果受付を公開する API コントローラー。 関連処理機能ID: PGD-004, PGD-005, PGD-006, PGD-008
+ * 出荷依頼受付、出荷状態照会、配送会社結果受付を公開する API コントローラー。 関連処理機能ID: PGD-004, PGD-005, PGD-006, PGD-008
  *
  * @author Takuya Yamamoto
  */
@@ -38,7 +38,7 @@ public class ShipmentGatewayController {
   /** 出荷状態照会サービス。 */
   private final ShipmentStatusQueryService shipmentStatusQueryService;
 
-  /** Bar社配送結果受付サービス。 */
+  /** 配送会社結果受付サービス。 */
   private final BarDeliveryResultService barDeliveryResultService;
 
   /** 出荷取消サービス。 */
@@ -80,14 +80,16 @@ public class ShipmentGatewayController {
   }
 
   /**
-   * Bar社からの配送結果通知を受け付ける。
+   * 配送会社からの配送結果通知を受け付ける。
    *
+   * @param carrier 配送会社コード
    * @param request 配送結果通知要求
    */
-  @PostMapping("/delivery-results/bar")
+  @PostMapping("/delivery-results/{carrier}")
   @ResponseStatus(HttpStatus.ACCEPTED)
-  public void acceptBarResult(@Valid @RequestBody BarDeliveryResultRequest request) {
-    barDeliveryResultService.accept(request);
+  public void acceptDeliveryResult(
+      @PathVariable String carrier, @Valid @RequestBody BarDeliveryResultRequest request) {
+    barDeliveryResultService.accept(carrier, request);
   }
 
   /**

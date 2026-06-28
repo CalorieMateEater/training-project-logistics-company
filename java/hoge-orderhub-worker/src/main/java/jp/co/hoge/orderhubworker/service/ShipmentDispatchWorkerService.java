@@ -17,6 +17,7 @@ import jp.co.hoge.orderhub.common.domain.OrderStatus;
 import jp.co.hoge.orderhub.common.domain.ShipmentRequestStatus;
 import jp.co.hoge.orderhub.common.dto.BarShipmentAcceptedResponse;
 import jp.co.hoge.orderhub.common.dto.BarShipmentRequestPayload;
+import jp.co.hoge.orderhub.common.integration.SqsMessageGateway;
 import jp.co.hoge.orderhub.common.logging.MdcUtils;
 import jp.co.hoge.orderhub.common.mapper.NotificationHistoryEntityMapper;
 import jp.co.hoge.orderhub.common.mapper.model.NotificationHistoryRecord;
@@ -90,6 +91,9 @@ public class ShipmentDispatchWorkerService {
   /** 現在時刻提供サービス。 */
   private final TimeProvider timeProvider;
 
+  /** SQS送信ゲートウェイ。 */
+  private final SqsMessageGateway sqsMessageGateway;
+
   /** 出荷依頼ペイロードマッパー。 */
   private final ShipmentDispatchMapper shipmentDispatchMapper;
 
@@ -137,15 +141,17 @@ public class ShipmentDispatchWorkerService {
         String outboundIfId = barCarrier ? "IF-HOGE-BAR-001" : "IF-HOGE-FUGA-001";
         String acceptedCompanyCode = barCarrier ? "BAR" : "FUGA";
 
+        if (order.getOrderStatus() == OrderStatus.WAITING_SHIPPING_RELEASE
+            && order.getShippingReleaseAt() != null
+            && !order.getShippingReleaseAt().isAfter(now)) {
+          order.setOrderStatus(
+              barCarrier ? OrderStatus.WAITING_BAR_REQUEST : OrderStatus.WAITING_FUGA_REQUEST);
+          order.setShipmentStatus(order.getOrderStatus());
+          order.setUpdatedAt(now);
+          orderHeaderRepository.save(order);
+        }
+
         if (barCarrier && !businessHoursService.isBarBusinessHours(now)) {
-          if (order.getOrderStatus() == OrderStatus.WAITING_SHIPPING_RELEASE
-              && order.getShippingReleaseAt() != null
-              && !order.getShippingReleaseAt().isAfter(now)) {
-            order.setOrderStatus(OrderStatus.WAITING_BAR_REQUEST);
-            order.setShipmentStatus(OrderStatus.WAITING_BAR_REQUEST);
-            order.setUpdatedAt(now);
-            orderHeaderRepository.save(order);
-          }
           shipmentRequest.setShipmentRequestStatus(ShipmentRequestStatus.WAITING_BUSINESS_HOURS);
           shipmentRequest.setNextRequestAfter(businessHoursService.nextBarBusinessTime(now));
           shipmentRequestRepository.save(shipmentRequest);
@@ -212,9 +218,11 @@ public class ShipmentDispatchWorkerService {
         shipmentRequest.setBarAcceptedAt(now);
         shipmentRequest.setBarAcceptNo(response.barShipmentId());
         shipmentRequestRepository.save(shipmentRequest);
+        sqsMessageGateway.delete(
+            shipmentQueueName(carrierCode), shipmentRequest.getShipmentRequestId());
 
-        order.setOrderStatus(OrderStatus.BAR_ACCEPTED);
-        order.setShipmentStatus(OrderStatus.BAR_ACCEPTED);
+        order.setOrderStatus(barCarrier ? OrderStatus.BAR_ACCEPTED : OrderStatus.FUGA_ACCEPTED);
+        order.setShipmentStatus(order.getOrderStatus());
         order.setUpdatedAt(now);
         orderHeaderRepository.save(order);
 
@@ -271,6 +279,12 @@ public class ShipmentDispatchWorkerService {
     return CarrierCode.BAR;
   }
 
+  private String shipmentQueueName(CarrierCode carrierCode) {
+    return carrierCode == CarrierCode.FUGA
+        ? "fuga-shipment-request-queue.fifo"
+        : "bar-shipment-request-queue.fifo";
+  }
+
   private void createNotification(
       OrderHeaderEntity order,
       NotificationType type,
@@ -281,6 +295,7 @@ public class ShipmentDispatchWorkerService {
       String referenceNotificationId,
       String notificationKey) {
     LocalDateTime now = timeProvider.now();
+    sqsMessageGateway.send(destination, order.getOrderId(), notificationKey, payloadSummary);
     NotificationHistoryEntity notification =
         notificationHistoryEntityMapper.toEntity(
             new NotificationHistoryRecord(

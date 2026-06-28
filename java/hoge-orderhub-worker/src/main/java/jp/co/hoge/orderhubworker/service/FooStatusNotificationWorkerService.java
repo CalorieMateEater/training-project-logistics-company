@@ -6,17 +6,22 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import jp.co.hoge.orderhub.common.domain.HulftSendStatus;
 import jp.co.hoge.orderhub.common.domain.InterfaceDirection;
 import jp.co.hoge.orderhub.common.domain.InterfaceStatus;
 import jp.co.hoge.orderhub.common.domain.NotificationStatus;
 import jp.co.hoge.orderhub.common.domain.NotificationType;
+import jp.co.hoge.orderhub.common.integration.HulftSendGateway;
 import jp.co.hoge.orderhub.common.logging.MdcUtils;
 import jp.co.hoge.orderhub.common.persistence.entity.DeliveryStatusCurrentEntity;
+import jp.co.hoge.orderhub.common.persistence.entity.HulftSendRequestEntity;
 import jp.co.hoge.orderhub.common.persistence.entity.NotificationHistoryEntity;
 import jp.co.hoge.orderhub.common.persistence.entity.OrderHeaderEntity;
 import jp.co.hoge.orderhub.common.persistence.repository.DeliveryStatusCurrentRepository;
+import jp.co.hoge.orderhub.common.persistence.repository.HulftSendRequestRepository;
 import jp.co.hoge.orderhub.common.persistence.repository.NotificationHistoryRepository;
 import jp.co.hoge.orderhub.common.persistence.repository.OrderHeaderRepository;
+import jp.co.hoge.orderhub.common.support.IdFactory;
 import jp.co.hoge.orderhub.common.support.TimeProvider;
 import jp.co.hoge.orderhubworker.config.WorkerFileProperties;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +57,15 @@ public class FooStatusNotificationWorkerService {
   /** インターフェース履歴記録サービス。 */
   private final InterfaceHistoryService interfaceHistoryService;
 
+  /** HULFT送信要求リポジトリ。 */
+  private final HulftSendRequestRepository hulftSendRequestRepository;
+
+  /** HULFT送信ゲートウェイ。 */
+  private final HulftSendGateway hulftSendGateway;
+
+  /** ID 採番サービス。 */
+  private final IdFactory idFactory;
+
   /** 現在時刻提供サービス。 */
   private final TimeProvider timeProvider;
 
@@ -86,7 +100,8 @@ public class FooStatusNotificationWorkerService {
       try (var scope = MdcUtils.withOrder(order.getOrderId())) {
         log.info(
             "APP_BATCH_RECORD_START function=fooStatusNotification orderId={}", order.getOrderId());
-        writeStatusFile(order, current);
+        Path filePath = writeStatusFile(order, current);
+        requestHulftSend("IF-HOGE-FOO-002", "FOO", filePath, notification);
         notification.setNotificationStatus(NotificationStatus.SENT);
         notification.setUpdatedAt(timeProvider.now());
         notificationHistoryRepository.save(notification);
@@ -107,7 +122,7 @@ public class FooStatusNotificationWorkerService {
     return published;
   }
 
-  private void writeStatusFile(OrderHeaderEntity order, DeliveryStatusCurrentEntity current) {
+  private Path writeStatusFile(OrderHeaderEntity order, DeliveryStatusCurrentEntity current) {
     try {
       Path statusDir = Path.of(workerFileProperties.getFooStatusDir());
       Files.createDirectories(statusDir);
@@ -119,8 +134,9 @@ public class FooStatusNotificationWorkerService {
               current.getLatestStatusCode(),
               current.getLatestStatusAt().format(ISO),
               order.getCarrierCode().name());
-      Files.writeString(
-          statusDir.resolve(fileName), line + System.lineSeparator(), StandardCharsets.UTF_8);
+      Path filePath = statusDir.resolve(fileName);
+      Files.writeString(filePath, line + System.lineSeparator(), StandardCharsets.UTF_8);
+      return filePath;
     } catch (IOException exception) {
       log.error(
           "MONITORING_BATCH_ERROR function=fooStatusNotificationWrite message={}",
@@ -128,5 +144,32 @@ public class FooStatusNotificationWorkerService {
           exception);
       throw new IllegalStateException(exception);
     }
+  }
+
+  private void requestHulftSend(
+      String ifId, String partnerCode, Path filePath, NotificationHistoryEntity notification) {
+    var now = timeProvider.now();
+    HulftSendRequestEntity sendRequest = new HulftSendRequestEntity();
+    sendRequest.setHulftSendRequestId(idFactory.notificationId());
+    sendRequest.setIfId(ifId);
+    sendRequest.setPartnerCode(partnerCode);
+    sendRequest.setFilePath(filePath.toString());
+    sendRequest.setNotificationId(notification.getNotificationId());
+    sendRequest.setSendStatus(HulftSendStatus.PENDING);
+    sendRequest.setCreatedAt(now);
+    sendRequest.setUpdatedAt(now);
+    hulftSendRequestRepository.save(sendRequest);
+
+    sendRequest.setSendStatus(HulftSendStatus.REQUESTING);
+    sendRequest.setUpdatedAt(timeProvider.now());
+    hulftSendRequestRepository.save(sendRequest);
+    String transferId =
+        hulftSendGateway.requestSend(
+            sendRequest.getHulftSendRequestId(), ifId, partnerCode, filePath);
+    sendRequest.setHulftTransferId(transferId);
+    sendRequest.setRequestedAt(timeProvider.now());
+    sendRequest.setSendStatus(HulftSendStatus.SENT);
+    sendRequest.setUpdatedAt(sendRequest.getRequestedAt());
+    hulftSendRequestRepository.save(sendRequest);
   }
 }

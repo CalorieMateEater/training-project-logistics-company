@@ -35,6 +35,10 @@ public interface ShipmentDispatchMapper {
       target = "temperatureZone",
       expression =
           "java(source.orderLines().isEmpty() ? \"AMBIENT\" : source.orderLines().get(0).getTemperatureZoneSnapshot())")
+  @Mapping(
+      target = "sizeType",
+      expression =
+          "java(source.orderLines().isEmpty() ? \"NORMAL\" : source.orderLines().get(0).getSizeTypeSnapshot())")
   @Mapping(target = "packageCount", source = "orderHeader.packageCount")
   @Mapping(
       target = "cashOnDeliveryAmount",

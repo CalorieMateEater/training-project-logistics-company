@@ -1,5 +1,6 @@
 package jp.co.hoge.orderhub.common.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -28,25 +29,26 @@ import java.util.List;
  * @author Takuya Yamamoto
  */
 public record BarShipmentRequestPayload(
-    String orderId,
-    String partnerOrderId,
-    String shipmentRequestId,
-    String orderSourceCode,
-    String shippingPriorityClass,
-    int partnerPriorityLevel,
-    String deliveryType,
-    String serviceLevel,
-    String temperatureZone,
-    int packageCount,
-    int cashOnDeliveryAmount,
-    LocalDate requestedShipDate,
-    LocalDate requestedDeliveryDate,
-    String deliveryZipCode,
-    String deliveryAddress,
-    String deliveryName,
-    String deliveryPhone,
-    String specialInstruction,
-    List<Item> items) {
+    @JsonProperty("order_id") String orderId,
+    @JsonProperty("partner_order_id") String partnerOrderId,
+    @JsonProperty("shipment_request_id") String shipmentRequestId,
+    @JsonProperty("order_source_code") String orderSourceCode,
+    @JsonProperty("shipping_priority_class") String shippingPriorityClass,
+    @JsonProperty("partner_priority_level") int partnerPriorityLevel,
+    @JsonProperty("delivery_type") String deliveryType,
+    @JsonProperty("service_level") String serviceLevel,
+    @JsonProperty("temperature_zone") String temperatureZone,
+    @JsonProperty("size_type") String sizeType,
+    @JsonProperty("package_count") int packageCount,
+    @JsonProperty("cash_on_delivery_amount") int cashOnDeliveryAmount,
+    @JsonProperty("requested_ship_date") LocalDate requestedShipDate,
+    @JsonProperty("requested_delivery_date") LocalDate requestedDeliveryDate,
+    @JsonProperty("delivery_zip_code") String deliveryZipCode,
+    @JsonProperty("delivery_address") String deliveryAddress,
+    @JsonProperty("delivery_name") String deliveryName,
+    @JsonProperty("delivery_phone") String deliveryPhone,
+    @JsonProperty("special_instruction") String specialInstruction,
+    @JsonProperty("items") List<Item> items) {
 
   /**
    * 出荷依頼電文内の商品明細。
@@ -59,9 +61,9 @@ public record BarShipmentRequestPayload(
    * @author Takuya Yamamoto
    */
   public record Item(
-      String itemCode,
-      String itemName,
-      int quantity,
-      String sourceWarehouseLocationCode,
-      int unitWeightGram) {}
+      @JsonProperty("item_code") String itemCode,
+      @JsonProperty("item_name") String itemName,
+      @JsonProperty("quantity") int quantity,
+      @JsonProperty("source_warehouse_location_code") String sourceWarehouseLocationCode,
+      @JsonProperty("unit_weight_gram") int unitWeightGram) {}
 }

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 import java.time.LocalDateTime;
+import jp.co.hoge.orderhub.common.integration.SqsMessageGateway;
 import jp.co.hoge.orderhub.common.persistence.repository.CustomerCheckResultRepository;
 import jp.co.hoge.orderhub.common.persistence.repository.NotificationHistoryRepository;
 import jp.co.hoge.orderhub.common.persistence.repository.OrderHeaderRepository;
@@ -38,6 +39,7 @@ class FooOrderImportServiceTest {
             new PriorityResolver(),
             new BusinessHoursService(),
             timeProvider,
+            mock(SqsMessageGateway.class),
             Mappers.getMapper(FooOrderImportEntityMapper.class));
 
     assertThatThrownBy(

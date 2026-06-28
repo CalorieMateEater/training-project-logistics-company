@@ -13,6 +13,7 @@ import jp.co.hoge.orderhub.common.dto.CustomerStatusResponse;
 import jp.co.hoge.orderhub.common.dto.ShipmentRegistrationAcceptedResponse;
 import jp.co.hoge.orderhub.common.dto.ShipmentRegistrationRequest;
 import jp.co.hoge.orderhub.common.dto.StockReservationResponse;
+import jp.co.hoge.orderhub.common.integration.SqsMessageGateway;
 import jp.co.hoge.orderhub.common.persistence.entity.ShipmentRequestEntity;
 import jp.co.hoge.orderhub.common.persistence.repository.CustomerCheckResultRepository;
 import jp.co.hoge.orderhub.common.persistence.repository.OrderHeaderRepository;
@@ -44,6 +45,7 @@ class ShipmentRegistrationServiceTest {
   @Mock private InterfaceHistoryService interfaceHistoryService;
   @Mock private BusinessHoursService businessHoursService;
   @Mock private IdFactory idFactory;
+  @Mock private SqsMessageGateway sqsMessageGateway;
 
   @Captor private ArgumentCaptor<ShipmentRequestEntity> shipmentRequestCaptor;
 
@@ -66,6 +68,7 @@ class ShipmentRegistrationServiceTest {
             idFactory,
             interfaceHistoryService,
             timeProvider,
+            sqsMessageGateway,
             Mappers.getMapper(ShipmentGatewayEntityMapper.class));
   }
 

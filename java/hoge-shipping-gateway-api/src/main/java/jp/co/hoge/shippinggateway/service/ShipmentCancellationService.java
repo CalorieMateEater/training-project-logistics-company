@@ -130,6 +130,7 @@ public class ShipmentCancellationService {
     return List.of(
                 OrderStatus.WAITING_SHIPPING_RELEASE,
                 OrderStatus.WAITING_BAR_REQUEST,
+                OrderStatus.WAITING_FUGA_REQUEST,
                 OrderStatus.RECEIVED)
             .contains(orderHeader.getOrderStatus())
         && List.of(
