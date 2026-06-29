@@ -1,7 +1,6 @@
 package jp.co.hoge.shippinggateway.service;
 
 import jp.co.hoge.orderhub.common.dto.CustomerStatusResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -14,11 +13,18 @@ import org.springframework.web.client.RestClient;
  */
 @Component
 @Slf4j
-@RequiredArgsConstructor
 public class CustomerRegistryClient {
   /** 顧客マスタ管理 API 用 REST クライアント。 */
-  @Qualifier("customerRegistryRestClient")
   private final RestClient restClient;
+
+  /**
+   * 顧客マスタ管理APIクライアントを生成する。
+   *
+   * @param restClient 顧客マスタ管理API用RESTクライアント
+   */
+  public CustomerRegistryClient(@Qualifier("customerRegistryRestClient") RestClient restClient) {
+    this.restClient = restClient;
+  }
 
   /**
    * 顧客状態を取得する。

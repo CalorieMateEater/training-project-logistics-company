@@ -3,7 +3,6 @@ package jp.co.hoge.shippinggateway.service;
 import jp.co.hoge.orderhub.common.dto.StockReservationOperationResponse;
 import jp.co.hoge.orderhub.common.dto.StockReservationRequest;
 import jp.co.hoge.orderhub.common.dto.StockReservationResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -16,11 +15,18 @@ import org.springframework.web.client.RestClient;
  */
 @Component
 @Slf4j
-@RequiredArgsConstructor
 public class StockKeeperClient {
   /** 在庫引当 API 用 REST クライアント。 */
-  @Qualifier("stockKeeperRestClient")
   private final RestClient restClient;
+
+  /**
+   * 在庫引当APIクライアントを生成する。
+   *
+   * @param restClient 在庫引当API用RESTクライアント
+   */
+  public StockKeeperClient(@Qualifier("stockKeeperRestClient") RestClient restClient) {
+    this.restClient = restClient;
+  }
 
   /**
    * 在庫引当を実行する。

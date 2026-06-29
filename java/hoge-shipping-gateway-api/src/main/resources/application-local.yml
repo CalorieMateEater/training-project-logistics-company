@@ -1,5 +1,5 @@
 server:
-  port: 8083
+  port: 8081
 
 spring:
   datasource:
@@ -20,5 +20,5 @@ spring:
 
 hoge:
   internal:
-    customer-base-url: http://localhost:8081
-    stock-base-url: http://localhost:8082
+    customer-base-url: http://localhost:8079
+    stock-base-url: http://localhost:8078

@@ -1,5 +1,5 @@
 server:
-  port: 8085
+  port: 8080
 
 spring:
   datasource:
@@ -17,8 +17,8 @@ spring:
 
 hoge:
   internal:
-    customer-base-url: http://localhost:8081
-    stock-base-url: http://localhost:8082
+    customer-base-url: http://localhost:8079
+    stock-base-url: http://localhost:8078
   files:
     foo-ack-dir: ./runtime/foo/ack
     archive-dir: ./runtime/archive
