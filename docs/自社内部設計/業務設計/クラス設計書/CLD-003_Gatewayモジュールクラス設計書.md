@@ -14,7 +14,7 @@
 | Application | `ShippingGatewayApplication` | Spring Boot 起動点 |
 | Config | `RestClientConfig` | `RestClient.Builder` 提供 |
 | Controller | `ShipmentGatewayController` | 対外APIのHTTP入口 |
-| Controller | `ApiExceptionHandler` | 例外応答変換 |
+| ControllerAdvice | `GlobalApiExceptionHandler` | 共通例外応答変換・監視ログ出力 |
 | Service | `ShipmentRegistrationService` | Hoge直受注登録 |
 | Service | `ShipmentStatusQueryService` | 出荷状態照会 |
 | Service | `DeliveryResultReceptionService` | Bar/Fuga配送結果の検証、受付監査、状態反映要求の登録 |
@@ -33,7 +33,7 @@ classDiagram
     class ShippingGatewayApplication
     class RestClientConfig
     class ShipmentGatewayController
-    class ApiExceptionHandler
+    class GlobalApiExceptionHandler
     class ShipmentRegistrationService
     class ShipmentStatusQueryService
     class DeliveryResultReceptionService
@@ -101,7 +101,7 @@ classDiagram
 - `DeliveryResultReceptionService` は受付監査と状態反映要求の登録までを担当し、注文・配送状態を直接更新しない。
 - `DeliveryStatusReflectionService` は配送状態取込Workerの処理本体として、状態更新、Bar初回受付時の在庫出荷確定、Foo通知起票、Baz通知投入、およびFoo注文に限定したQux通知投入を担当する。
 - 外部社内API呼出は `CustomerRegistryClient`、`StockKeeperClient` に閉じ込める。
-- 例外応答整形は `ApiExceptionHandler` に集約する。
+- 例外応答整形と監視ログ出力は共通 `GlobalApiExceptionHandler` に集約する。
 
 ## 5. 実装上の注意点
 - `ShipmentStatusQueryService` は現在、Foo社状態照会とHoge社業務確認の双方で利用されるため、許可クライアントごとの参照条件整理が必要である。

@@ -52,8 +52,7 @@ public class ControllerLoggingAspect {
           org.slf4j.MDC.get(MdcKeys.REQUEST_ID),
           joinPoint.getSignature().toShortString(),
           System.currentTimeMillis() - startedAt,
-          throwable.getMessage(),
-          throwable);
+          throwable.getMessage());
       throw throwable;
     }
   }

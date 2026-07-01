@@ -4,6 +4,10 @@ spring:
   profiles:
     default: local
 
+logging:
+  level:
+    root: INFO
+
 management:
   endpoints:
     web:

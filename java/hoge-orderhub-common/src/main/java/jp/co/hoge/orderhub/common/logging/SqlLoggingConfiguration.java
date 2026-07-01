@@ -32,13 +32,7 @@ public class SqlLoggingConfiguration {
   QueryExecutionListener sqlQueryExecutionListener() {
     return new QueryExecutionListener() {
       @Override
-      public void beforeQuery(ExecutionInfo execInfo, List<QueryInfo> queryInfoList) {
-        log.info(
-            "SQL_BEFORE trackingId={} connection={} queries={}",
-            org.slf4j.MDC.get(MdcKeys.TRACKING_ID),
-            execInfo.getConnectionId(),
-            formatQueries(queryInfoList));
-      }
+      public void beforeQuery(ExecutionInfo execInfo, List<QueryInfo> queryInfoList) {}
 
       @Override
       public void afterQuery(ExecutionInfo execInfo, List<QueryInfo> queryInfoList) {
