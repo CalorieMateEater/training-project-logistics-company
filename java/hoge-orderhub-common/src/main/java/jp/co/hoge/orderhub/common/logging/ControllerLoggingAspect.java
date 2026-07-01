@@ -28,9 +28,11 @@ public class ControllerLoggingAspect {
   public Object logAroundController(ProceedingJoinPoint joinPoint) throws Throwable {
     MdcUtils.getOrCreateTrackingId();
     log.info(
-        "APP_CONTROLLER_BEFORE trackingId={} requestId={} method={} args={}",
+        "APP_CONTROLLER_BEFORE trackingId={} requestId={} httpMethod={} path={} method={} args={}",
         org.slf4j.MDC.get(MdcKeys.TRACKING_ID),
         org.slf4j.MDC.get(MdcKeys.REQUEST_ID),
+        org.slf4j.MDC.get(MdcKeys.HTTP_METHOD),
+        org.slf4j.MDC.get(MdcKeys.REQUEST_PATH),
         joinPoint.getSignature().toShortString(),
         Arrays.toString(joinPoint.getArgs()));
     long startedAt = System.currentTimeMillis();
